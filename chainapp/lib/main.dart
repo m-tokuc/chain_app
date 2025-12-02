@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:flutter/material.dart'; // Bu satır çift yazılmış, silin!
+
 // BU SATIR ÖNEMLİ: Arkadaşınızın getirdiği Firebase yapılandırma dosyası
 import 'firebase_options.dart';
+
+// --- BU İKİ SATIRI EKLEYİN (Ekranları Tanıtmak İçin) ---
+// Arkadaşınızın oluşturduğu ekran dosyalarını import edin:
+import 'screens/home_screen.dart'; // HomeScreen'i kullanabilmek için
+import 'screens/login_screen.dart';
 
 void main() async {
   // Firebase kullanacaksan bu iki satır main içinde şarttır:
@@ -20,11 +28,43 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
+  // chainapp/lib/main.dart
+// ... (MyApp sınıfının üst kısmı)
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Chain App',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
+      // HATA: home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
+      // ÇÖZÜM:
+      home: AuthGate(), // AuthGate'i ana sayfa olarak ayarla
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Firebase login durumunu dinler
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Firebase henüz hazır değil — loading gösterebiliriz
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Kullanıcı giriş yapmışsa → HomeScreen
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+
+        // Kullanıcı giriş yapmamışsa → LoginScreen
+        return const LoginScreen();
+      },
     );
   }
 }
