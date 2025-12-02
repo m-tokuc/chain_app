@@ -1,3 +1,4 @@
+import 'package:chainapp/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 
 class InviteCodeScreen extends StatelessWidget {
@@ -51,7 +52,11 @@ class InviteCodeScreen extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context); // HomeScreen'e geri dön
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const HomeScreen())); // HomeScreen'e geri dön
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),

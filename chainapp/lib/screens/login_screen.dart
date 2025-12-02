@@ -1,7 +1,7 @@
+import 'package:chainapp/screens/starting_page.dart';
 import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
 import 'register_screen.dart'; // 🔥 eklenen import
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(builder: (context) => StartingPage()),
                   );
                 } else {
                   print("LOGIN FAILED!");

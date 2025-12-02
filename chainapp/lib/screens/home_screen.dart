@@ -119,7 +119,7 @@ class HomeScreen extends StatelessWidget {
                   // 📌 Kullanıcının chain listesi (StreamBuilder)
                   Expanded(
                     child: StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: chainService.getUserChains(userId),
+                      stream: chainService.getUserChainsStream(userId),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
                           return const Center(
