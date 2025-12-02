@@ -1,29 +1,33 @@
+// import 'package:flutter/material.dart';
+// import 'package:firebase_core/firebase_core.dart'; // firebase_core'u eklediğinizden emin olun
+
+// // flutterfire configure ile oluşturulan ve bağlantı bilgilerini içeren dosya
+// import 'firebase_options.dart';
+
+// void main() async {
+//   // Flutter motorunun (binding) başlatılmasını bekle
+//   WidgetsFlutterBinding.ensureInitialized();
+
+//   // Firebase'i başlat
+//   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+//   runApp(const MyApp());
+// }
+// //H: öncesini silme otomatik olarak firebase i̇nitialize ediyor
+
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart'; // firebase_core'u eklediğinizden emin olun
+
+// flutterfire configure ile oluşturulan ve bağlantı bilgilerini içeren dosya
+import 'firebase_options.dart';
 
 void main() async {
-  // Firebase kullanacaksan bu iki satır main içinde şarttır:
+  // Flutter motorunun (binding) başlatılmasını bekle
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Firebase'i başlat
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Chain App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const Scaffold(
-        body: Center(
-          child: Text('Merhaba Chain App!'),
-        ),
-      ),
-    );
-  }
-}
+//H: öncesini silme otomatik olarak firebase i̇nitialize ediyor
