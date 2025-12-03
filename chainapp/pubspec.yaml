@@ -133,14 +133,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # İkonlar (Güncel sürüm)
+ # İkonlar (Arkadaşının güncel sürümü)
   cupertino_icons: ^1.0.8
 
-  # Firebase (Senin eklediğin paketler)
+  # Firebase (Senin eklediğin paketler - BUNLAR KALMALI)
   firebase_core: ^2.32.0
   firebase_auth: ^4.17.6
   cloud_firestore: ^4.17.5
-
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
