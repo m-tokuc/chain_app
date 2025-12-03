@@ -1,6 +1,6 @@
 import 'dart:ui';
+import 'package:chainapp/widgets/chainpart.dart';
 import 'package:flutter/material.dart';
-
 import '../services/firebase_auth_service.dart';
 import '../services/chain_service.dart';
 import 'login_screen.dart';
@@ -20,7 +20,12 @@ class HomeScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(20),
+          ),
+        ),
+        backgroundColor: Colors.black,
         elevation: 0,
         title: const Text(
           "Chain App",
@@ -78,129 +83,45 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+          //1. Zincir
+          Positioned(
+            top: 300,
+            left: 40,
+            child: chainpart(rotationAngle: -0.3),
+          ),
+          Positioned(
+            top: 220,
+            left: 270,
+            child: chainpart(rotationAngle: -0.2),
+          ),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Kullanıcı selamlama
-                  Text(
-                    "Welcome back,",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    userEmail ?? "Traveler",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  const Text(
-                    "Your Chains",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 📌 Kullanıcının chain listesi (StreamBuilder)
-                  Expanded(
-                    child: StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: chainService.getUserChainsStream(userId),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          );
-                        }
-
-                        final chains = snapshot.data!;
-
-                        if (chains.isEmpty) {
-                          return Center(
-                            child: Text(
-                              "You don't have any chains yet.\nTap + to create one!",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 16,
-                              ),
-                            ),
-                          );
-                        }
-
-                        // LIST VIEW
-                        return ListView.builder(
-                          itemCount: chains.length,
-                          itemBuilder: (context, index) {
-                            final c = chains[index];
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.25),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    c["name"] ?? "Unnamed Chain",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "Period: ${c["period"]}",
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "Status: ${c["status"]}",
-                                    style: TextStyle(
-                                      color: c["status"] == "active"
-                                          ? Colors.greenAccent
-                                          : Colors.redAccent,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+          Positioned(
+            top: 300, // 1. Zincirle AYNI KONUM
+            left: 40, // 1. Zincirle AYNI KONUM
+            child: ClipRect(
+              // Burada deneme yanılma ile kesişim noktasını bulman lazım.
+              // Örnek: (x: 200, y: 0, genişlik: 100, yükseklik: 100)
+              // Bu değerleri halkanın neresinin üste çıkmasını istiyorsan ona göre ayarla.
+              clipper: AreaClipper(const Rect.fromLTWH(220, 0, 110, 300)),
+              child: chainpart(rotationAngle: -0.3), // 1. Zincirle AYNI AÇI
             ),
           ),
+          Positioned(
+            top: 250,
+            left: -160,
+            child: chainpart(rotationAngle: 0.1),
+          ),
+          Positioned(
+            top: 300, // 1. Zincirle AYNI KONUM
+            left: 40, // 1. Zincirle AYNI KONUM
+            child: ClipRect(
+              // Burada deneme yanılma ile kesişim noktasını bulman lazım.
+              // Örnek: (x: 200, y: 0, genişlik: 100, yükseklik: 100)
+              // Bu değerleri halkanın neresinin üste çıkmasını istiyorsan ona göre ayarla.
+              clipper: AreaClipper(const Rect.fromLTWH(30, 40, 110, 300)),
+              child: chainpart(rotationAngle: -0.3), // 1. Zincirle AYNI AÇI
+            ),
+          )
         ],
       ),
     );
