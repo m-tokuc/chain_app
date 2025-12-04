@@ -99,4 +99,68 @@ class FirestoreService {
       'members': FieldValue.arrayUnion([userId]),
     });
   }
+
+  // GÜNLÜK ZİNCİR KONTROLÜ (Telefon Saatiyle)
+  Future<void> checkChainsOnAppStart(String userId) async {
+    try {
+      // DİKKAT: Buradaki ismi '_db' yaptık çünkü senin projende böyle tanımlı.
+      final snapshot = await _db
+          .collection('chains')
+          .where('members', arrayContains: userId)
+          .get();
+
+      final now = DateTime.now();
+      final String todayStr =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      final yesterday = now.subtract(const Duration(days: 1));
+      final String yesterdayStr =
+          "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final String status = data['status'] ?? 'active';
+        final String? lastCheckIn = data['lastCheckInDate'];
+
+        if (status == 'broken') continue;
+
+        if (lastCheckIn == null) continue;
+
+        if (lastCheckIn == todayStr) {
+          if (status == 'warning') {
+            await doc.reference.update({'status': 'active'});
+          }
+          continue;
+        }
+
+        if (lastCheckIn == yesterdayStr) {
+          if (now.hour >= 12) {
+            if (status != 'broken') {
+              await doc.reference.update({
+                'status': 'broken',
+                'streakCount': 0,
+                'brokenAt': FieldValue.serverTimestamp(),
+              });
+              print("${doc.id} zinciri kırıldı (Öğlen 12'yi geçti).");
+            }
+          } else {
+            if (status != 'warning') {
+              await doc.reference.update({'status': 'warning'});
+              print("${doc.id} zinciri uyarı moduna geçti.");
+            }
+          }
+        } else {
+          if (status != 'broken') {
+            await doc.reference.update({
+              'status': 'broken',
+              'streakCount': 0,
+              'brokenAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Günlük kontrol hatası: $e");
+    }
+  }
 }

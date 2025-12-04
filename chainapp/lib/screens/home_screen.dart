@@ -3,18 +3,57 @@ import 'package:flutter/material.dart';
 
 import '../services/firebase_auth_service.dart';
 import '../services/chain_service.dart';
+// FirestoreService'i eklemeyi unutma, çünkü kontrol fonksiyonu orada:
+import '../services/firestore_service.dart';
 import 'login_screen.dart';
 import 'create_chain_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+// 1. Değişiklik: Burası artık StatefulWidget oldu
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // Servisleri burada tanımlıyoruz ki her yerden erişelim
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  final ChainService _chainService = ChainService();
+  final FirestoreService _firestoreService =
+      FirestoreService(); // Kontrol için bu lazım
+
+  late String userId;
+  String? userEmail;
+
+  // 2. Değişiklik: initState (Ekran ilk açıldığında çalışan yer)
+  @override
+  void initState() {
+    super.initState();
+
+    // Kullanıcı bilgilerini al
+    userId = _authService.currentUserId() ?? "";
+    userEmail = _authService.getCurrentUserEmail();
+
+    // ZİNCİR KONTROLÜNÜ BAŞLAT 🚀
+    // Ekran çizilir çizilmez bu fonksiyon çalışacak.
+    _gunlukKontroluYap();
+  }
+
+  // Bu fonksiyon arka planda saati kontrol edip zinciri kıracak veya uyaracak
+  Future<void> _gunlukKontroluYap() async {
+    if (userId.isNotEmpty) {
+      await _firestoreService.checkChainsOnAppStart(userId);
+      // İşlem bitince ekranı tazeleyelim ki kullanıcı sonucu görsün
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final authService = FirebaseAuthService();
-    final userEmail = authService.getCurrentUserEmail();
-    final userId = authService.currentUserId(); // ← ARTIK TAM DOĞRU
-    final chainService = ChainService();
+    // build metodu artık çok daha sade, servisler yukarıda tanımlı.
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -46,7 +85,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
-              await authService.logout();
+              await _authService.logout();
 
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
@@ -119,7 +158,8 @@ class HomeScreen extends StatelessWidget {
                   // 📌 Kullanıcının chain listesi (StreamBuilder)
                   Expanded(
                     child: StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: chainService.getUserChains(userId),
+                      // userId artık initState'den geliyor
+                      stream: _chainService.getUserChains(userId),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
                           return const Center(
@@ -180,12 +220,17 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
+
+                                  // 3. Değişiklik: Status Rengi Mantığı (Daha güvenli hale getirdim)
                                   Text(
                                     "Status: ${c["status"]}",
                                     style: TextStyle(
+                                      // Status 'active' ise Yeşil, 'warning' ise Turuncu, 'broken' ise Kırmızı
                                       color: c["status"] == "active"
                                           ? Colors.greenAccent
-                                          : Colors.redAccent,
+                                          : c["status"] == "warning"
+                                              ? Colors.orangeAccent
+                                              : Colors.redAccent,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

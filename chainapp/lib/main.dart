@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:flutter/material.dart'; // Bu satır çift yazılmış, silin!
-
-// BU SATIR ÖNEMLİ: Arkadaşınızın getirdiği Firebase yapılandırma dosyası
 import 'firebase_options.dart';
-
-// --- BU İKİ SATIRI EKLEYİN (Ekranları Tanıtmak İçin) ---
-// Arkadaşınızın oluşturduğu ekran dosyalarını import edin:
-import 'screens/home_screen.dart'; // HomeScreen'i kullanabilmek için
 import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
-  // Firebase kullanacaksan bu iki satır main içinde şarttır:
+  // Flutter motorunu başlat
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase'i başlatırken, flutterfire configure ile oluşturulan options'ı kullanın
+
+  // Firebase'i başlat (Arkadaşının getirdiği ayar dosyasıyla)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -23,48 +18,32 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-// ... (MyApp widget'ının geri kalanı)
-
   const MyApp({super.key});
-
-  @override
-  // chainapp/lib/main.dart
-// ... (MyApp sınıfının üst kısmı)
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Chain App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      // HATA: home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
-      // ÇÖZÜM:
-      home: AuthGate(), // AuthGate'i ana sayfa olarak ayarla
-    );
-  }
-}
-
-class AuthGate extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Firebase login durumunu dinler
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Firebase henüz hazır değil — loading gösterebiliriz
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // Kullanıcı giriş yapmışsa → HomeScreen
-        if (snapshot.hasData) {
-          return const HomeScreen();
-        }
-
-        // Kullanıcı giriş yapmamışsa → LoginScreen
-        return const LoginScreen();
-      },
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C5ECF)),
+        useMaterial3: true,
+      ),
+      // --- ANA KAPI ---
+      // Burası kullanıcının giriş yapıp yapmadığını kontrol eder.
+      // Giriş yaptıysa -> HomeScreen
+      // Yapmadıysa -> LoginScreen
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // Eğer veri varsa (yani kullanıcı giriş yapmışsa)
+          if (snapshot.hasData) {
+            return const HomeScreen();
+          }
+          // Yoksa giriş ekranına gönder
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
