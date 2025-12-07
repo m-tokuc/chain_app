@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:chainapp/widgets/chainpart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/chain_service.dart';
@@ -13,7 +15,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = FirebaseAuthService();
     final userEmail = authService.getCurrentUserEmail();
-    final userId = authService.currentUserId(); // ← ARTIK TAM DOĞRU
+    final userId = authService.currentUserId();
     final chainService = ChainService();
 
     return Scaffold(
@@ -66,7 +68,7 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // Gradient arka plan
+          // 1. Gradient Arka Plan
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -75,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                     Color(0xFF0A0E25),
                     Color(0xFF142A52),
                     Color(0xFF1F3D78),
-                    Color(0xFF6C5ECF),
+                    Color(0xFF6C5ECF)
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -83,45 +85,101 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          //1. Zincir
-          Positioned(
-            top: 300,
-            left: 40,
-            child: chainpart(rotationAngle: -0.3),
-          ),
-          Positioned(
-            top: 220,
-            left: 270,
-            child: chainpart(rotationAngle: -0.2),
-          ),
 
+          // 2. Dinamik Zincir Listesi
+          // ... Stack'in içindeki diğer kodlar (Arkaplan vs.)
+
+          // ZİNCİR LİSTESİ
           Positioned(
-            top: 300, // 1. Zincirle AYNI KONUM
-            left: 40, // 1. Zincirle AYNI KONUM
-            child: ClipRect(
-              // Burada deneme yanılma ile kesişim noktasını bulman lazım.
-              // Örnek: (x: 200, y: 0, genişlik: 100, yükseklik: 100)
-              // Bu değerleri halkanın neresinin üste çıkmasını istiyorsan ona göre ayarla.
-              clipper: AreaClipper(const Rect.fromLTWH(220, 0, 110, 300)),
-              child: chainpart(rotationAngle: -0.3), // 1. Zincirle AYNI AÇI
+            top: 220, // Listenin genel yüksekliği
+            left: 0,
+            right: 0,
+            height: 400, // Zincirlerin taşmaması için geniş alan
+            child: FutureBuilder<int>(
+              future: chainService.getNumberOfChains(userId ?? ""),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: Colors.white));
+                }
+
+                final count = snapshot.data ?? 0;
+
+                // AYARLAR (Buradan ince ayar yapabilirsin)
+                const double linkWidth = 310.0; // Senin container genişliğin
+                const double shiftAmount =
+                    185.0; // Her halkanın ne kadar kayacağı (Overlap ayarı)
+                // widthFactor hesabı: (Kayma Miktarı / Genişlik)
+                const double myWidthFactor = shiftAmount / linkWidth;
+
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior:
+                      Clip.none, // Çok önemli: Zincirlerin kesilmemesini sağlar
+                  padding: const EdgeInsets.only(
+                      left: 40, right: 100), // İlk baştaki boşluk
+                  itemCount: 10,
+                  itemBuilder: (context, index) {
+                    // Çiftler (0, 2, 4): Aşağıda, Sola Yatık (-0.3)
+                    // Tekler (1, 3, 5): Yukarıda, Sağa Yatık (0.1)
+                    final bool isEven = index % 2 == 0;
+
+                    // Şu anki halkanın özellikleri
+                    final double currentAngle = isEven ? -0.3 : 0.1;
+                    final double currentTop = isEven ? 80.0 : 0.0;
+
+                    // Bir önceki halkanın özellikleri (Yama yapmak için lazım)
+                    final double prevAngle = isEven ? 0.1 : -0.3; // Tam tersi
+                    final double prevTop = isEven ? 0.0 : 80.0; // Tam tersi
+
+                    // İki halka arasındaki yükseklik farkı
+                    // Eğer ben aşağıdaysam (80), önceki yukarıdadır (0). Fark: -80
+                    final double topDiff = prevTop - currentTop;
+
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      widthFactor: myWidthFactor, // Elemanları iç içe geçirir
+                      child: Transform.translate(
+                        offset: Offset(
+                            0, currentTop), // Aşağı/Yukarı zig-zag hareketi
+                        child: Stack(
+                          clipBehavior: Clip.none, // Taşmalara izin ver
+                          children: [
+                            // ------------------------------------------
+                            // 1. KATMAN: ASIL ZİNCİR (Current Link)
+                            // ------------------------------------------
+                            chainpart(rotationAngle: currentAngle),
+
+                            // ------------------------------------------
+                            // 2. KATMAN: YAMA (Previous Link Patch)
+                            // ------------------------------------------
+                            // Sadece ilk eleman (index 0) hariç hepsine yama lazım
+                            if (index > 0)
+                              Positioned(
+                                // Bir önceki halkayı, şu anki halkanın koordinatına göre
+                                // tam olarak olması gereken yere (geriye) koyuyoruz.
+                                left: -shiftAmount,
+                                top: topDiff,
+                                child: ClipRect(
+                                  // SİHİRLİ KISIM: Burası "kesişim" noktasıdır.
+                                  // Bir önceki halkanın SAĞ tarafını kesip alıyoruz.
+                                  // Bu değerleri senin resmine göre hassas ayarladım.
+                                  clipper: AreaClipper(
+                                      // x: 200 -> Halkanın sağ tarafına odaklan
+                                      // width: 110 -> Yeterince geniş bir alan al
+                                      const Rect.fromLTWH(190, 0, 120, 120)),
+                                  child: chainpart(rotationAngle: prevAngle),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
-          Positioned(
-            top: 250,
-            left: -160,
-            child: chainpart(rotationAngle: 0.1),
-          ),
-          Positioned(
-            top: 300, // 1. Zincirle AYNI KONUM
-            left: 40, // 1. Zincirle AYNI KONUM
-            child: ClipRect(
-              // Burada deneme yanılma ile kesişim noktasını bulman lazım.
-              // Örnek: (x: 200, y: 0, genişlik: 100, yükseklik: 100)
-              // Bu değerleri halkanın neresinin üste çıkmasını istiyorsan ona göre ayarla.
-              clipper: AreaClipper(const Rect.fromLTWH(30, 40, 110, 300)),
-              child: chainpart(rotationAngle: -0.3), // 1. Zincirle AYNI AÇI
-            ),
-          )
         ],
       ),
     );

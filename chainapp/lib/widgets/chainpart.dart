@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class chainpart extends StatelessWidget {
-  double rotationAngle;
+  final double rotationAngle;
   chainpart({super.key, required this.rotationAngle});
 
   @override

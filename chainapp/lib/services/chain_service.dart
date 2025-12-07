@@ -73,4 +73,21 @@ class ChainService {
       return null;
     }
   }
+  // 🔥 Kullanıcının zincir sayısını al
+  Future<int> getNumberOfChains(String userId) async {
+    try {
+      final querySnapshot = await _db
+          .collection("chains")
+          .where("members", arrayContains: userId)
+          .get();
+
+      return querySnapshot.docs.length;
+    } catch (e) {
+      print("🔥 GET NUMBER OF CHAINS ERROR: $e");
+      return 0;
+    }
+  }
 }
+
+
+  
