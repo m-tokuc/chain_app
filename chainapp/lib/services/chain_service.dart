@@ -19,8 +19,9 @@ class ChainService {
     }).join();
   }
 
-  // 🔥 Kullanıcıya ait chainleri stream olarak çek
-  Stream<List<Map<String, dynamic>>> getUserChains(String userId) {
+  // 🔥 DÜZELTME BURADA YAPILDI: Fonksiyon adı getUserChainsStream olarak güncellendi
+  // StartingPage bu ismi arıyor.
+  Stream<List<Map<String, dynamic>>> getUserChainsStream(String userId) {
     return _db
         .collection("chains")
         .where("members", arrayContains: userId)
@@ -56,8 +57,8 @@ class ChainService {
         "name": name,
         "description": description,
         "period": period,
-        "members": members,
-        "inviteCode": code, // ← EKLENEN KISIM
+        "members": members, // ✅ Doğru: Üye listesi kaydediliyor
+        "inviteCode": code, 
         "createdBy": userId,
         "status": "active",
         "brokenBy": null,
@@ -72,4 +73,21 @@ class ChainService {
       return null;
     }
   }
+  // 🔥 Kullanıcının zincir sayısını al
+  Future<int> getNumberOfChains(String userId) async {
+    try {
+      final querySnapshot = await _db
+          .collection("chains")
+          .where("members", arrayContains: userId)
+          .get();
+
+      return querySnapshot.docs.length;
+    } catch (e) {
+      print("🔥 GET NUMBER OF CHAINS ERROR: $e");
+      return 0;
+    }
+  }
 }
+
+
+  
