@@ -180,7 +180,87 @@ class HomeScreen extends StatelessWidget {
               },
             ),
           ),
+          Positioned(
+              top: 460,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const SizedBox(
+                    height: 80,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width - 20,
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.black.withOpacity(0.5),
+                      child: Text(
+                        "Welcome, $userEmail",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width - 20,
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.black.withOpacity(0.5),
+                      child: Text(
+                        "Welcome, $userEmail",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width - 20,
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.black.withOpacity(0.5),
+                      child: Text(
+                        "Welcome, $userEmail",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ))
         ],
+      ),
+      bottomNavigationBar: SizedBox(
+        height: 80,
+        child: BottomAppBar(
+          color: Colors.black,
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 6.0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.home, color: Colors.white),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white),
+                onPressed: () {},
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
