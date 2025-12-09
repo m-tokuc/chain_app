@@ -1,16 +1,63 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // firebase_core'u eklediğinizden emin olun
 
-// flutterfire configure ile oluşturulan ve bağlantı bilgilerini içeren dosya
-import 'firebase_options.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/login_screen.dart';
 
 void main() async {
-  // Flutter motorunun (binding) başlatılmasını bekle
+  // Firebase kullanacaksan bu iki satır main içinde şarttır:
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Firebase'i başlat
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Firebase'i başlatırken, flutterfire configure ile oluşturulan options'ı kullanın
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
-//H: öncesini silme otomatik olarak firebase i̇nitialize ediyor
+
+class MyApp extends StatelessWidget {
+// ... (MyApp widget'ının geri kalanı)
+
+  const MyApp({super.key});
+
+  @override
+  // chainapp/lib/main.dart
+// ... (MyApp sınıfının üst kısmı)
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Chain App',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      // HATA: home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
+      // ÇÖZÜM:
+      home: AuthGate(), // AuthGate'i ana sayfa olarak ayarla
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Firebase login durumunu dinler
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Firebase henüz hazır değil — loading gösterebiliriz
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Kullanıcı giriş yapmışsa → HomeScreen
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+
+        // Kullanıcı giriş yapmamışsa → LoginScreen
+        return const LoginScreen();
+      },
+    );
+  }
+}
