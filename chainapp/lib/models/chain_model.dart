@@ -5,12 +5,15 @@ class ChainModel {
   String name;
   String description;
   String period; // daily / weekly / custom
-  List<String> members;
-  String status; // active / broken
+  //List<String> members;
+  //String status; // active / broken
   String? brokenBy;
   Timestamp? brokenAt;
   Timestamp createdAt;
   Timestamp startDate;
+  final List<String> members;
+  final int streakCount;
+  final String status;
 
   ChainModel({
     required this.id,
@@ -18,7 +21,8 @@ class ChainModel {
     required this.description,
     required this.period,
     required this.members,
-    required this.status,
+    required this.status, // Bu alanın 'required' olması önemli
+    required this.streakCount, // Yeni eklenen zincir sayacı
     this.brokenBy,
     this.brokenAt,
     required this.createdAt,
@@ -27,13 +31,20 @@ class ChainModel {
 
   // Firestore’dan model oluşturma
   factory ChainModel.fromMap(String id, Map<String, dynamic> data) {
+    // StreakCount değeri yoksa 0 (sıfır) varsayımı yapıyoruz.
+    final int streakCount = data['streakCount'] as int? ?? 0;
+
     return ChainModel(
       id: id,
       name: data['name'],
       description: data['description'],
       period: data['period'],
-      members: List<String>.from(data['members']),
+      members:
+          List<String>.from(data['members'] ?? []), // Null kontrolü ekledik
       status: data['status'],
+
+      streakCount: streakCount, // <--- Hata çözüldü! Yeni zorunlu alan eklendi.
+
       brokenBy: data['brokenBy'],
       brokenAt: data['brokenAt'],
       createdAt: data['createdAt'],
@@ -49,6 +60,9 @@ class ChainModel {
       'period': period,
       'members': members,
       'status': status,
+
+      'streakCount': streakCount, // <--- Kaydetme işlemi için eklendi.
+
       'brokenBy': brokenBy,
       'brokenAt': brokenAt,
       'createdAt': createdAt,

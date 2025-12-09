@@ -1,27 +1,37 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
 
 void main() async {
+  // Firebase kullanacaksan bu iki satır main içinde şarttır:
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase'i başlatırken, flutterfire configure ile oluşturulan options'ı kullanın
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const ChainApp());
+
+  runApp(const MyApp());
 }
 
-class ChainApp extends StatelessWidget {
-  const ChainApp({super.key});
+class MyApp extends StatelessWidget {
+// ... (MyApp widget'ının geri kalanı)
+
+  const MyApp({super.key});
+
+  @override
+  // chainapp/lib/main.dart
+// ... (MyApp sınıfının üst kısmı)
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: AuthGate(),
+      title: 'Chain App',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      // HATA: home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
+      // ÇÖZÜM:
+      home: AuthGate(), // AuthGate'i ana sayfa olarak ayarla
     );
   }
 }
