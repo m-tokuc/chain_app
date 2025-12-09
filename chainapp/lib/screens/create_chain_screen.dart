@@ -49,6 +49,7 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
       period: selectedPeriod,
       members: [userId], // şimdilik sadece kendini ekliyoruz
     );
+    if (!mounted) return;
 
     setState(() => isLoading = false);
 

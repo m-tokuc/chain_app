@@ -1,14 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:flutter/material.dart'; // Bu satır çift yazılmış, silin!
-
-// BU SATIR ÖNEMLİ: Arkadaşınızın getirdiği Firebase yapılandırma dosyası
-import 'firebase_options.dart';
-
-// --- BU İKİ SATIRI EKLEYİN (Ekranları Tanıtmak İçin) ---
-// Arkadaşınızın oluşturduğu ekran dosyalarını import edin:
-import 'screens/home_screen.dart'; // HomeScreen'i kullanabilmek için
 import 'screens/login_screen.dart';
 
 void main() async {
