@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:chainapp/screens/join_chain_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -267,6 +268,24 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              Container(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => JoinChainScreen()));
+                        },
+                  child: const Text("join with an invite code",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white70)),
+                ),
+              )
             ],
           ),
         ),

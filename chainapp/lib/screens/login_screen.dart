@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:chainapp/screens/starting_page.dart';
 import 'package:flutter/material.dart';
 
 import '../services/firebase_auth_service.dart';
@@ -40,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (user != null && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) =>  StartingPage()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

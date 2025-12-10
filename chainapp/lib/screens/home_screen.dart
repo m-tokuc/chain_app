@@ -1,5 +1,8 @@
 import 'dart:ui';
+import 'package:chainapp/screens/invite_code_screen.dart';
+import 'package:chainapp/screens/join_chain_screen.dart';
 import 'package:chainapp/widgets/chainpart.dart';
+import 'package:chainapp/widgets/homepagefriendbox.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +26,17 @@ class HomeScreen extends StatelessWidget {
         height: 65,
         width: 65,
         child: FloatingActionButton(
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => InviteCodeScreen(
+                  chainId: 'exampleChainId',
+                  inviteCode: 'ABC123',
+                ),
+              ),
+            );
+          },
           backgroundColor: const Color(0xFF6C5ECF),
           elevation: 10,
           shape: const CircleBorder(),
@@ -35,6 +48,7 @@ class HomeScreen extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(20),
@@ -88,14 +102,28 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
+          // zincir adi
+          Positioned(
+            top: MediaQuery.of(context).size.height / 8,
+            left: 0,
+            right: 0,
+            child: Text(
+              textAlign: TextAlign.center,
+              "Your Chain",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold),
+            ),
+          ),
+
           // 2. Dinamik Zincir Listesi
           // ... Stack'in içindeki diğer kodlar (Arkaplan vs.)
 
           // ZİNCİR LİSTESİ
           Positioned(
-            top: MediaQuery.of(context).size.height /
-                5, // Listenin genel yüksekliği
-            left: 0,
+            top: MediaQuery.of(context).size.height / 5,
+            left: -50,
             right: 0,
             height: 400, // Zincirlerin taşmaması için geniş alan
             child: FutureBuilder<int>(
@@ -121,7 +149,7 @@ class HomeScreen extends StatelessWidget {
                       Clip.none, // Çok önemli: Zincirlerin kesilmemesini sağlar
                   padding: const EdgeInsets.only(
                       left: 40, right: 100), // İlk baştaki boşluk
-                  itemCount: count + 2,
+                  itemCount: count + 1,
                   itemBuilder: (context, index) {
                     // Çiftler (0, 2, 4): Aşağıda, Sola Yatık (-0.3)
                     // Tekler (1, 3, 5): Yukarıda, Sağa Yatık (0.1)
@@ -184,7 +212,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           Positioned(
-              top: MediaQuery.of(context).size.height / 2,
+              top: MediaQuery.of(context).size.height / 2.5,
               bottom: 0,
               left: 0,
               right: 0,
@@ -198,19 +226,7 @@ class HomeScreen extends StatelessWidget {
                       itemBuilder: (BuildContext context, int index) {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Container(
-                            width: MediaQuery.of(context).size.width - 20,
-                            padding: const EdgeInsets.all(20),
-                            color: Colors.black.withOpacity(0.5),
-                            child: Text(
-                              "Welcome, $userEmail",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                          child: friendbox(),
                         );
                       },
                     ),
