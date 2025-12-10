@@ -19,15 +19,28 @@ class HomeScreen extends StatelessWidget {
     final chainService = ChainService();
 
     return Scaffold(
+      floatingActionButton: SizedBox(
+        height: 65,
+        width: 65,
+        child: FloatingActionButton(
+          onPressed: () {},
+          backgroundColor: const Color(0xFF6C5ECF),
+          elevation: 10,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, size: 35, color: Colors.white),
+        ),
+      ),
+
+      // Butonun yerleşimi: Ortada ve Bar'a gömülü
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
       appBar: AppBar(
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(20),
           ),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.black.withOpacity(0.9),
         elevation: 0,
         title: const Text(
           "Chain App",
@@ -38,23 +51,11 @@ class HomeScreen extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
-          // Yeni chain oluşturma
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateChainScreen()),
-              );
-            },
-          ),
-
           // Logout
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await authService.logout();
-
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
@@ -66,6 +67,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      extendBody: true,
       body: Stack(
         children: [
           // 1. Gradient Arka Plan
@@ -91,7 +93,8 @@ class HomeScreen extends StatelessWidget {
 
           // ZİNCİR LİSTESİ
           Positioned(
-            top: 220, // Listenin genel yüksekliği
+            top: MediaQuery.of(context).size.height /
+                5, // Listenin genel yüksekliği
             left: 0,
             right: 0,
             height: 400, // Zincirlerin taşmaması için geniş alan
@@ -118,7 +121,7 @@ class HomeScreen extends StatelessWidget {
                       Clip.none, // Çok önemli: Zincirlerin kesilmemesini sağlar
                   padding: const EdgeInsets.only(
                       left: 40, right: 100), // İlk baştaki boşluk
-                  itemCount: 10,
+                  itemCount: count + 2,
                   itemBuilder: (context, index) {
                     // Çiftler (0, 2, 4): Aşağıda, Sola Yatık (-0.3)
                     // Tekler (1, 3, 5): Yukarıda, Sağa Yatık (0.1)
@@ -181,84 +184,97 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           Positioned(
-              top: 460,
+              top: MediaQuery.of(context).size.height / 2,
+              bottom: 0,
+              left: 0,
+              right: 0,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  const SizedBox(
-                    height: 80,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width - 20,
-                      padding: const EdgeInsets.all(20),
-                      color: Colors.black.withOpacity(0.5),
-                      child: Text(
-                        "Welcome, $userEmail",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width - 20,
-                      padding: const EdgeInsets.all(20),
-                      color: Colors.black.withOpacity(0.5),
-                      child: Text(
-                        "Welcome, $userEmail",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width - 20,
-                      padding: const EdgeInsets.all(20),
-                      color: Colors.black.withOpacity(0.5),
-                      child: Text(
-                        "Welcome, $userEmail",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: 10,
+                      itemBuilder: (BuildContext context, int index) {
+                        return Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Container(
+                            width: MediaQuery.of(context).size.width - 20,
+                            padding: const EdgeInsets.all(20),
+                            color: Colors.black.withOpacity(0.5),
+                            child: Text(
+                              "Welcome, $userEmail",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ))
         ],
       ),
-      bottomNavigationBar: SizedBox(
-        height: 80,
-        child: BottomAppBar(
-          color: Colors.black,
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 6.0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.home, color: Colors.white),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings, color: Colors.white),
-                onPressed: () {},
-              ),
-            ],
+      bottomNavigationBar: Container(
+        // Barın üst köşelerini hafif yuvarlatarak daha yumuşak bir hava katalım
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, -5), // Yukarı doğru hafif gölge
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          child: BottomAppBar(
+            color: Colors.black.withOpacity(0.9),
+            shape: const CircularNotchedRectangle(),
+            notchMargin: 10.0,
+            height: 70,
+            padding: EdgeInsets.zero,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // SOL TARAFTAKİ İKONLAR
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.home_rounded, size: 30),
+                        color: Colors.white.withOpacity(0.9),
+                        onPressed: () {},
+                        tooltip: 'Ana Sayfa',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // SAĞ TARAFTAKİ İKONLAR
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.settings_rounded, size: 30),
+                        color: Colors.white.withOpacity(0.9),
+                        onPressed: () {},
+                        tooltip: 'Ayarlar',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
