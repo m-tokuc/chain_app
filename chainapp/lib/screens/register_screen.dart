@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
 import 'login_screen.dart';
+import '../widgets/google_button.dart';
+import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,17 +15,31 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final FirebaseAuthService _authService = FirebaseAuthService();
 
+  // ⭐ YENİ EKLENEN KISIMLAR
+  final confirmPasswordController = TextEditingController();
+  bool hidePassword = true;
+  bool hideConfirmPassword = true;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
   bool isLoading = false;
 
+  // ⭐ REGISTER LOGIC
   void registerUser() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email and password required")),
+        const SnackBar(content: Text("All fields are required")),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
       );
       return;
     }
@@ -36,19 +52,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created successfully")),
+        const SnackBar(content: Text("Account created successfully!")),
       );
 
-      // Login ekranına dön
-      if (context.mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Register failed")),
+      );
+    }
+  }
+
+  // ⭐ GOOGLE SIGN-IN
+  Future<void> signInWithGoogle() async {
+    final user = await _authService.signInWithGoogle();
+
+    if (user != null && context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     }
   }
@@ -82,7 +107,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
 
-          // === PAGE CONTENT ===
           SafeArea(
             child: Center(
               child: Padding(
@@ -111,63 +135,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: Colors.white,
                             ),
                           ),
+
                           const SizedBox(height: 24),
 
-                          // EMAIL FIELD
+                          // EMAIL
                           TextField(
                             controller: emailController,
                             style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: "Email",
-                              labelStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.8)),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: const BorderSide(
-                                    color: Colors.white, width: 1.5),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                    color: Colors.white.withOpacity(0.3)),
+                            decoration: inputStyle("Email"),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // PASSWORD
+                          TextField(
+                            controller: passwordController,
+                            obscureText: hidePassword,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: inputStyle("Password").copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  hidePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.white70,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    hidePassword = !hidePassword;
+                                  });
+                                },
                               ),
                             ),
                           ),
 
                           const SizedBox(height: 16),
 
-                          // PASSWORD FIELD
+                          // CONFIRM PASSWORD
                           TextField(
-                            controller: passwordController,
-                            obscureText: true,
+                            controller: confirmPasswordController,
+                            obscureText: hideConfirmPassword,
                             style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: "Password",
-                              labelStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.8)),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: const BorderSide(
-                                    color: Colors.white, width: 1.5),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide(
-                                    color: Colors.white.withOpacity(0.3)),
+                            decoration: inputStyle("Confirm Password").copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  hideConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.white70,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    hideConfirmPassword = !hideConfirmPassword;
+                                  });
+                                },
                               ),
                             ),
                           ),
 
                           const SizedBox(height: 24),
 
-                          // BUTTON
+                          // CREATE ACCOUNT BUTTON
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: isLoading ? null : registerUser,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFA68FFF),
-                                foregroundColor: Colors.white,
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
@@ -183,9 +217,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,
+                                        color: Colors.white,
                                       ),
                                     ),
                             ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // GOOGLE SIGN-IN
+                          GoogleButton(
+                            onPressed: signInWithGoogle,
                           ),
 
                           const SizedBox(height: 16),
@@ -203,7 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               "Already have an account? Login",
                               style: TextStyle(color: Colors.white70),
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -213,6 +255,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 🔥 INPUT DECORATION
+  InputDecoration inputStyle(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
       ),
     );
   }
