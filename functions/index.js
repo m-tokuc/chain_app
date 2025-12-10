@@ -6,6 +6,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // --- GÖREV 1: GECE BEKÇİSİ (00:00) ---
+// Akşam 00:00'da kontrol eder ve dünün check-in'i yapılmadıysa 'active' zincirleri 'warning' (uyarı) yapar.
 exports.markChainsAsRisky = functions.pubsub
   .schedule("0 0 * * *")
   .timeZone("Europe/Istanbul")
@@ -18,6 +19,7 @@ exports.markChainsAsRisky = functions.pubsub
 
     snapshot.docs.forEach((doc) => {
       const data = doc.data();
+      // lastCheckInDate'in dünden farklı olması, check-in yapılmadığı anlamına gelir.
       if (data.lastCheckInDate !== yesterday) {
         batch.update(doc.ref, { 
           status: "warning",
@@ -33,7 +35,7 @@ exports.markChainsAsRisky = functions.pubsub
   });
 
 // --- GÖREV 2: ÖĞLEN YARGICI (12:00) ---
-// --- GÖREV 2: ÖĞLEN YARGICI (GÜNCELLENMİŞ VERSİYON) ---
+// Öğlen 12:00'de kontrol eder ve 'warning' (uyarı) durumundaki zincirleri kırar ('broken').
 exports.breakChainsFinally = functions.pubsub
   .schedule("0 12 * * *")
   .timeZone("Europe/Istanbul")
@@ -44,12 +46,13 @@ exports.breakChainsFinally = functions.pubsub
 
     const snapshot = await db.collection("chains").where("status", "==", "warning").get();
 
-    // Döngü içinde async işlem yapacağımız için 'for...of' kullanıyoruz
+    // Düzeltme: Async işlemler için for...of kullanıldı
     for (const doc of snapshot.docs) {
       const data = doc.data();
+      // Eğer 'warning' durumundaki zincir bugünün check-in'ini yapmadıysa kırılır.
       if (data.lastCheckInDate !== today) {
         
-        // 1. Veritabanı Güncellemesi
+        // 1. Veritabanı Güncellemesi: Zinciri Kır
         batch.update(doc.ref, { 
           status: "broken",
           streakCount: 0,
@@ -57,13 +60,14 @@ exports.breakChainsFinally = functions.pubsub
         });
         count++;
 
-        // 2. BİLDİRİM GÖNDERME (YENİ EKLEME) 🔔
+        // 2. BİLDİRİM GÖNDERME 🔔
         const members = data.members || [];
         const tokens = [];
 
         // Üyelerin tokenlarını bul
         for (const memberId of members) {
           const userDoc = await db.collection('users').doc(memberId).get();
+          // Eğer kullanıcı varsa ve fcmToken'i varsa ekle
           if (userDoc.exists && userDoc.data().fcmToken) {
             tokens.push(userDoc.data().fcmToken);
           }
@@ -77,7 +81,7 @@ exports.breakChainsFinally = functions.pubsub
               sound: 'default'
             }
           };
-          // Hata olsa bile zincir kırma işlemi durmasın diye try-catch
+          // Bildirim gönderimini try-catch içine aldık ki hatalar tüm fonksiyonu durdurmasın
           try {
             await admin.messaging().sendToDevice(tokens, payload);
           } catch (e) {
@@ -91,7 +95,9 @@ exports.breakChainsFinally = functions.pubsub
     console.log(count + " zincir kırıldı ve bildirimleri atıldı.");
     return null;
   });
-  // --- GÖREV 3: CHECK-IN BİLDİRİMİ (Anlık Çalışır) ---
+  
+// --- GÖREV 3: CHECK-IN BİLDİRİMİ (Anlık Çalışır) ---
+// Bir zincir güncellendiğinde (strek arttığında) diğer üyelere anlık bildirim gönderir.
 exports.sendCheckInNotification = functions.firestore
   .document('chains/{chainId}')
   .onUpdate(async (change, context) => {
@@ -103,12 +109,10 @@ exports.sendCheckInNotification = functions.firestore
       const members = newData.members || [];
       const chainName = newData.name || "Zincir";
 
-      // Bildirimi alacak kişilerin Tokenlarını bulmamız lazım
       const tokens = [];
       
       // Üyelerin profillerini gez
       for (const memberId of members) {
-        // (İsterseniz check-in yapan kişiye atmamak için buraya 'if' koyabilirsiniz)
         const userDoc = await db.collection('users').doc(memberId).get();
         if (userDoc.exists) {
           const userData = userDoc.data();
@@ -118,7 +122,6 @@ exports.sendCheckInNotification = functions.firestore
         }
       }
 
-      // Eğer atacak kimse yoksa dur
       if (tokens.length === 0) return null;
 
       // Mesajı Hazırla
@@ -134,5 +137,5 @@ exports.sendCheckInNotification = functions.firestore
       await admin.messaging().sendToDevice(tokens, payload);
       console.log("Bildirim gönderildi:", tokens.length, "kişi");
     }
-    return null;
+    return null; // Fonksiyonun bitişi
   });

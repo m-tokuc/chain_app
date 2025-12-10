@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class chainpart extends StatelessWidget {
   final double rotationAngle;
+<<<<<<< HEAD
 
   // 1. Yeni Alanları Tanımlayın (home_screen.dart'tan gelen veriler)
   final String chainName; // Zincir Adı
@@ -65,6 +66,47 @@ class chainpart extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.all(Radius.circular(150)),
+=======
+  chainpart({super.key, required this.rotationAngle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          transform: Matrix4.rotationZ(rotationAngle),
+          width: 310,
+          height: 190,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.all(Radius.circular(150)),
+            border: Border.all(
+              color: Colors.black,
+              width: 8,
+            ),
+          ),
+          child: Stack(children: [
+            Container(
+              width: 310,
+              height: 190,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.all(Radius.circular(150)),
+                border: Border.all(
+                  color: Colors.blueAccent,
+                  width: 28,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Container(
+                width: 310,
+                height: 190,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.all(Radius.circular(150)),
+>>>>>>> origin/main
                   border: Border.all(
                     color: Colors.black,
                     width: 8,
@@ -72,6 +114,7 @@ class chainpart extends StatelessWidget {
                 ),
               ),
             ),
+<<<<<<< HEAD
 
             // 3. Veri Alanları (Halkanın Ortası)
             Center(
@@ -103,14 +146,25 @@ class chainpart extends StatelessWidget {
           ],
         ),
       ),
+=======
+          ]),
+        ),
+      ],
+>>>>>>> origin/main
     );
   }
 }
 
+<<<<<<< HEAD
 // AreaClipper sınıfı, çakışmanın dışında olduğu için olduğu gibi kalabilir.
 class AreaClipper extends CustomClipper<Rect> {
   final Rect clipRect;
   const AreaClipper(this.clipRect); // const ekledim
+=======
+class AreaClipper extends CustomClipper<Rect> {
+  final Rect clipRect;
+  AreaClipper(this.clipRect);
+>>>>>>> origin/main
 
   @override
   Rect getClip(Size size) {
@@ -118,6 +172,10 @@ class AreaClipper extends CustomClipper<Rect> {
   }
 
   @override
+<<<<<<< HEAD
   bool shouldReclip(covariant CustomClipper<Rect> oldClipper) =>
       false; // Bunu false yapalım, daha performanslı olur.
+=======
+  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => true;
+>>>>>>> origin/main
 }
