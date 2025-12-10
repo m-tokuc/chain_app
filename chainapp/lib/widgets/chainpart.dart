@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 class chainpart extends StatelessWidget {
   final double rotationAngle;
-<<<<<<< HEAD
 
   // 1. Yeni Alanları Tanımlayın (home_screen.dart'tan gelen veriler)
   final String chainName; // Zincir Adı
@@ -25,16 +24,14 @@ class chainpart extends StatelessWidget {
     const double linkHeight = 190.0;
     const double linkBorderWidth = 28.0;
 
+    // Transform.rotate kullanarak rotasyonu sağlayın
     return Transform.rotate(
-      // rotationZ, Transform.rotate yerine Matrix4.rotationZ kullanıldığı için kaldırıldı.
-      // Ancak orijinal kodunuz Matrix4.rotationZ'yi zaten transform: içinde kullanıyordu.
-      // Düzgün çalışması için onu kaldırıp bu widget'ı Transform.rotate ile sarmaladım.
       angle: rotationAngle,
       child: Container(
         width: linkWidth,
         height: linkHeight,
 
-        // Bu iç içe Stack, zincir halkasının 3 boyutlu/kalın görünümünü oluşturur.
+        // Zincir halkasının 3 boyutlu/kalın görünümünü oluşturur.
         child: Stack(
           children: [
             // Dış Çerçeve (Gölge veya dış katman)
@@ -48,7 +45,7 @@ class chainpart extends StatelessWidget {
               ),
             ),
 
-            // Ana Renkli Halka (BlueAccent)
+            // Ana Renkli Halka (BlueAccent/Durum Rengi)
             Container(
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.all(Radius.circular(150)),
@@ -61,52 +58,10 @@ class chainpart extends StatelessWidget {
 
             // İç Siyah Çerçeve (Ortayı belirler)
             Padding(
-              padding:
-                  const EdgeInsets.all(20.0), // Dış çerçeveden içerideki boşluk
+              padding: const EdgeInsets.all(20.0),
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.all(Radius.circular(150)),
-=======
-  chainpart({super.key, required this.rotationAngle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          transform: Matrix4.rotationZ(rotationAngle),
-          width: 310,
-          height: 190,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.all(Radius.circular(150)),
-            border: Border.all(
-              color: Colors.black,
-              width: 8,
-            ),
-          ),
-          child: Stack(children: [
-            Container(
-              width: 310,
-              height: 190,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.all(Radius.circular(150)),
-                border: Border.all(
-                  color: Colors.blueAccent,
-                  width: 28,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Container(
-                width: 310,
-                height: 190,
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.all(Radius.circular(150)),
->>>>>>> origin/main
                   border: Border.all(
                     color: Colors.black,
                     width: 8,
@@ -114,16 +69,14 @@ class chainpart extends StatelessWidget {
                 ),
               ),
             ),
-<<<<<<< HEAD
 
-            // 3. Veri Alanları (Halkanın Ortası)
+            // 3. Veri Alanları (Halkanın Ortası - SİZİN HEAD MANTIĞINIZ)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    // Zincir Adı
-                    chainName,
+                    chainName, // Zincir Adı
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -132,9 +85,9 @@ class chainpart extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    // Streak Sayısı ve Renk
-                    '$streakCount Days',
+                    '$streakCount Days', // Streak Sayısı
                     style: TextStyle(
+                      // Not: Streak rengini beyaz yaptım, çünkü ana halka rengini statusColor ile zaten belirledik.
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -146,25 +99,15 @@ class chainpart extends StatelessWidget {
           ],
         ),
       ),
-=======
-          ]),
-        ),
-      ],
->>>>>>> origin/main
     );
   }
 }
 
-<<<<<<< HEAD
-// AreaClipper sınıfı, çakışmanın dışında olduğu için olduğu gibi kalabilir.
+// AreaClipper sınıfı (Çakışma çözüldü)
 class AreaClipper extends CustomClipper<Rect> {
   final Rect clipRect;
-  const AreaClipper(this.clipRect); // const ekledim
-=======
-class AreaClipper extends CustomClipper<Rect> {
-  final Rect clipRect;
-  AreaClipper(this.clipRect);
->>>>>>> origin/main
+  // const constructor'ı HEAD'den aldık
+  const AreaClipper(this.clipRect);
 
   @override
   Rect getClip(Size size) {
@@ -172,10 +115,6 @@ class AreaClipper extends CustomClipper<Rect> {
   }
 
   @override
-<<<<<<< HEAD
-  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) =>
-      false; // Bunu false yapalım, daha performanslı olur.
-=======
-  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => true;
->>>>>>> origin/main
+  // false yapmak daha performanslıdır (HEAD'den aldık)
+  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => false;
 }
