@@ -45,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Zincir Kontrol Mantığı
   Future<void> _gunlukKontroluYap() async {
     if (userId.isNotEmpty) {
       await _firestoreService.checkChainsOnAppStart(userId);
@@ -55,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Status String'ine göre renk döndüren helper fonksiyon
   Color _getStatusColor(String status) {
     switch (status) {
       case "active":
