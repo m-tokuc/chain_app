@@ -1,9 +1,9 @@
+import 'package:chainapp/firebase_options.dart';
+import 'package:chainapp/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
-import 'firebase_options.dart';
-import 'screens/home_screen.dart';
 
 void main() async {
   // Firebase kullanacaksan bu iki satır main içinde şarttır:
