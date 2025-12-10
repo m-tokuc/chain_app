@@ -1,8 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
+import 'firebase_options.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
   // Firebase kullanacaksan bu iki satır main içinde şarttır:
@@ -27,6 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Chain App',
       theme: ThemeData(primarySwatch: Colors.blue),
       // HATA: home: const Scaffold(body: Center(child: Text('Merhaba Chain App!'))),
@@ -52,7 +54,7 @@ class AuthGate extends StatelessWidget {
 
         // Kullanıcı giriş yapmışsa → HomeScreen
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return HomeScreen();
         }
 
         // Kullanıcı giriş yapmamışsa → LoginScreen
