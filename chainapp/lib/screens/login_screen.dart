@@ -1,7 +1,5 @@
 import 'dart:ui';
-import 'package:chainapp/screens/starting_page.dart';
 import 'package:flutter/material.dart';
-
 import '../services/firebase_auth_service.dart';
 import 'register_screen.dart';
 import 'chain_hub_screen.dart';
@@ -189,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onTap: () => FocusScope.of(context)
                                         .requestFocus(_emailFocusNode),
                                     child: TextField(
-                                      
+
 
                                       focusNode: _emailFocusNode,
                                       controller: _emailController,

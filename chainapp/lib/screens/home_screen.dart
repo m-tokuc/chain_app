@@ -50,14 +50,15 @@ class HomeScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: ()  {
-            Navigator.of(context).push( MaterialPageRoute(
-              builder: (context) => const ChainHubScreen(),
-            ));
-          }
-          
-        ),
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChainHubScreen(),
+                ),
+              );
+            }),
         automaticallyImplyLeading: false,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -129,7 +130,7 @@ class HomeScreen extends StatelessWidget {
           // 2. ZİNCİR LİSTESİ (Chain Visualization)
           // Burası senin mevcut kodun, dokunmadım.
           Positioned(
-            top: screenHeight / 6,
+            top: screenHeight / 5,
             left: -120,
             right: 0,
             height: 400,
