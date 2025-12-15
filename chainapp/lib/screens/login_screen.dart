@@ -3,8 +3,8 @@ import 'package:chainapp/screens/starting_page.dart';
 import 'package:flutter/material.dart';
 
 import '../services/firebase_auth_service.dart';
-import 'home_screen.dart';
 import 'register_screen.dart';
+import 'chain_hub_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isEmailLoading = false;
   bool _isGoogleLoading = false;
-  bool _obscurePassword = true; // panda göz açık / kapalı
+  bool _obscurePassword = true;
 
   // ---------------- EMAIL LOGIN ----------------
   Future<void> _loginWithEmail() async {
@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (user != null && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) =>  StartingPage()),
+        MaterialPageRoute(builder: (_) => const ChainHubScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (user != null && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const ChainHubScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // ---- BACKGROUND ----
+          // BACKGROUND
           Positioned.fill(
             child: Image.asset(
               'assets/images/hsl.login/hsl.jpg',
@@ -118,9 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
-                    // ================================================================
-                    //                         TITLE AREA
-                    // ================================================================
                     const Icon(
                       Icons.link_rounded,
                       color: Color(0xFFA68FFF),
@@ -135,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    Text(
+                    const Text(
                       "Don’t break the chain 👣",
                       style: TextStyle(
                         fontSize: 14,
@@ -145,13 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 200),
 
-                    // ================================================================
-                    //                     PANDA + LOGIN CARD
-                    // ================================================================
+                    // LOGIN CARD + PANDA
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        // ---- LOGIN CARD BELOW ----
                         ClipRRect(
                           borderRadius: BorderRadius.circular(24),
                           child: BackdropFilter(
@@ -169,26 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Login',
                                     style: TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.white.withOpacity(0.95),
+                                      color: Colors.white,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-
-                                  // EMAIL INPUT
                                   TextField(
                                     controller: _emailController,
                                     style: const TextStyle(color: Colors.white),
                                     decoration: _inputDecoration("Email"),
                                   ),
-
                                   const SizedBox(height: 16),
-
-                                  // PASSWORD INPUT + EYE ICON
                                   TextField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
@@ -211,10 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
-
                                   const SizedBox(height: 20),
-
-                                  // LOGIN BUTTON
                                   SizedBox(
                                     height: 50,
                                     width: double.infinity,
@@ -234,19 +220,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ? const CircularProgressIndicator(
                                               color: Colors.white,
                                               strokeWidth: 2)
-                                          : const Text(
-                                              "Login",
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
+                                          : const Text("Login"),
                                     ),
                                   ),
-
                                   const SizedBox(height: 16),
-
-                                  // GOOGLE LOGIN
                                   SizedBox(
                                     height: 48,
                                     width: double.infinity,
@@ -254,34 +231,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                       onPressed: _isGoogleLoading
                                           ? null
                                           : _loginWithGoogle,
-                                      icon: _isGoogleLoading
-                                          ? const SizedBox(
-                                              height: 22,
-                                              width: 22,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Icon(Icons.g_mobiledata,
-                                              color: Colors.white, size: 28),
-                                      style: OutlinedButton.styleFrom(
-                                        side: BorderSide(
-                                          color: Colors.white.withOpacity(0.5),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(18),
-                                        ),
+                                      icon: const Icon(
+                                        Icons.g_mobiledata,
+                                        color: Colors.white,
+                                        size: 28,
                                       ),
-                                      label: Text(
-                                        _isGoogleLoading
-                                            ? "Signing in..."
-                                            : "Continue with Google",
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                      label: const Text(
+                                        "Continue with Google",
+                                        style: TextStyle(color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -290,10 +247,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-
-                        // ================================================================
-                        //                           PANDA
-                        // ================================================================
                         Positioned(
                           top: -240,
                           left: 0,
@@ -307,7 +260,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : 'assets/images/panda/panda_closed.png',
                                 key: ValueKey(_obscurePassword),
                                 height: 500,
-                                fit: BoxFit.contain,
                               ),
                             ),
                           ),
@@ -317,7 +269,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
-                    // REGISTER BUTTON
                     TextButton(
                       onPressed: () {
                         Navigator.push(
