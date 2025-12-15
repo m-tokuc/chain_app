@@ -11,7 +11,7 @@ class StartingPage extends StatelessWidget {
   final chainService = ChainService();
 
   StartingPage({super.key}) {
-    userId = authService.currentUserId();
+    userId = authService.currentUserId()!;
     // 1. KONTROL: ID doğru geliyor mu? Konsola bak.
     print("StartingPage Başlatıldı - Kullanıcı ID: $userId");
   }

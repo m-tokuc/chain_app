@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:chainapp/screens/starting_page.dart';
 import 'package:flutter/material.dart';
 
 import '../services/firebase_auth_service.dart';
@@ -17,9 +18,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = FirebaseAuthService();
 
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
   bool _isEmailLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    // Sayfa kapanınca bunları temizlemek iyi bir alışkanlıktır
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
 
   // ---------------- EMAIL LOGIN ----------------
   Future<void> _loginWithEmail() async {
@@ -171,31 +185,45 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  TextField(
-                                    controller: _emailController,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: _inputDecoration("Email"),
+                                  GestureDetector(
+                                    onTap: () => FocusScope.of(context)
+                                        .requestFocus(_emailFocusNode),
+                                    child: TextField(
+                                      
+
+                                      focusNode: _emailFocusNode,
+                                      controller: _emailController,
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      decoration: _inputDecoration("Email"),
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
-                                  TextField(
-                                    controller: _passwordController,
-                                    obscureText: _obscurePassword,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: _inputDecoration(
-                                      "Password",
-                                      suffix: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_off
-                                              : Icons.visibility,
-                                          color: Colors.white70,
+                                  GestureDetector(
+                                    onTap: () => FocusScope.of(context)
+                                        .requestFocus(_passwordFocusNode),
+                                    child: TextField(
+                                      focusNode: _passwordFocusNode,
+                                      controller: _passwordController,
+                                      obscureText: _obscurePassword,
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      decoration: _inputDecoration(
+                                        "Password",
+                                        suffix: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            color: Colors.white70,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _obscurePassword =
+                                                  !_obscurePassword;
+                                            });
+                                          },
                                         ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _obscurePassword =
-                                                !_obscurePassword;
-                                          });
-                                        },
                                       ),
                                     ),
                                   ),

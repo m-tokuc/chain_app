@@ -1,12 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-
 import '../services/chain_service.dart';
 import '../services/firebase_auth_service.dart';
 import 'create_chain_screen.dart';
 import 'join_chain_screen.dart';
 import 'home_screen.dart';
-import 'login_screen.dart';
 
 class ChainHubScreen extends StatelessWidget {
   const ChainHubScreen({super.key});
@@ -21,18 +19,13 @@ class ChainHubScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.logout, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () async {
-            await authService.logout();
-
-            if (context.mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
-                ),
-              );
-            }
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => HomeScreen()),
+              (route) => false,
+            );
           },
         ),
         title: const Text(

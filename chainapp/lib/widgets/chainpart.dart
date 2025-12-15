@@ -16,20 +16,34 @@ class chainpart extends StatelessWidget {
             color: Colors.transparent,
             borderRadius: BorderRadius.all(Radius.circular(150)),
             border: Border.all(
-              color: Colors.black,
-              width: 8,
+              color: Colors.white,
+              width: 4,
             ),
           ),
           child: Stack(children: [
-            Container(
-              width: 310,
-              height: 190,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.all(Radius.circular(150)),
-                border: Border.all(
-                  color: Colors.blueAccent,
-                  width: 28,
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [
+                    Color(0xFF6C5ECF), // Mor
+                    Color(0xFF3B82F6), // Mavi
+                    Colors.purpleAccent // Açık Mor
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.srcATop,
+              child: Container(
+                width: 310,
+                height: 190,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.all(Radius.circular(150)),
+                  border: Border.all(
+                    color: Colors.blueAccent.withOpacity(0.8),
+                    width: 24,
+                  ),
                 ),
               ),
             ),
@@ -42,8 +56,8 @@ class chainpart extends StatelessWidget {
                   color: Colors.transparent,
                   borderRadius: BorderRadius.all(Radius.circular(150)),
                   border: Border.all(
-                    color: Colors.black,
-                    width: 8,
+                    color: Colors.white,
+                    width: 4,
                   ),
                 ),
               ),
