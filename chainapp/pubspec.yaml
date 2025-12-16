@@ -1,11 +1,8 @@
 name: chainapp
 description: "A new Flutter project."
-<<<<<<< HEAD
-publish_to: 'none' # Bu satır, yanlışlıkla yayınlamayı engeller.
-=======
-publish_to: 'none'
+# Bu satır, yanlışlıkla yayınlamayı engeller.
+publish_to: 'none' 
 
->>>>>>> 3b69c24d933ba64b6916622786e7f315d55e838b
 version: 1.0.0+1
 
 environment:
@@ -15,40 +12,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-<<<<<<< HEAD
-  cupertino_icons: ^1.0.8 # HEAD ve origin/main tarafından korundu
-
-  # Bütün Firebase paketleri tek bir listede birleştirildi
-  firebase_core: ^2.15.1
-  firebase_auth: ^4.5.1
-  cloud_firestore: ^4.7.1
-  firebase_messaging: ^14.7.10 # Sizin (HEAD) tarafınızdan eklendi
-  
-=======
   cupertino_icons: ^1.0.8
+
+  # Birleştirilmiş Firebase ve diğer paketler
   firebase_core: ^2.15.1
   firebase_auth: ^4.5.1
   cloud_firestore: ^4.7.1
-  google_sign_in: ^6.2.1
-  firebase_messaging: ^14.7.10
-
->>>>>>> 3b69c24d933ba64b6916622786e7f315d55e838b
+  firebase_messaging: ^14.7.10 
+  google_sign_in: ^6.2.1 # Arkadaşınızdan gelen paket
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
-<<<<<<< HEAD
 # The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
-  
-  # Yorum satırları ve asset/font bölümleri sadeleştirildi veya kaldırıldı
-=======
-flutter:
-  uses-material-design: true
 
+  # Arkadaşınızdan gelen assets tanımları
   assets:
     - assets/images/hsl.login/hsl.jpg
     - assets/images/panda/
->>>>>>> 3b69c24d933ba64b6916622786e7f315d55e838b
