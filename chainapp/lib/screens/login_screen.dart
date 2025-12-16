@@ -1,7 +1,8 @@
-import 'package:chainapp/screens/starting_page.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
-import 'register_screen.dart'; // 🔥 eklenen import
+import 'register_screen.dart';
+import 'chain_hub_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,89 +12,311 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = FirebaseAuthService();
+
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
+  bool _isEmailLoading = false;
+  bool _isGoogleLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
+    // Sayfa kapanınca bunları temizlemek iyi bir alışkanlıktır
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  // ---------------- EMAIL LOGIN ----------------
+  Future<void> _loginWithEmail() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in email and password.")),
+      );
+      return;
+    }
+
+    setState(() => _isEmailLoading = true);
+    final user = await _authService.login(email, password);
+    setState(() => _isEmailLoading = false);
+
+    if (user != null && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ChainHubScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login failed. Try again.")),
+      );
+    }
+  }
+
+  // ---------------- GOOGLE LOGIN ----------------
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    final user = await _authService.signInWithGoogle();
+    setState(() => _isGoogleLoading = false);
+
+    if (user != null && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ChainHubScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Google sign-in failed")),
+      );
+    }
+  }
+
+  // ---------------- INPUT DECORATION ----------------
+  InputDecoration _inputDecoration(String label, {Widget? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.08),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+      ),
+      suffixIcon: suffix,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Chain App",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // BACKGROUND
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/hsl.login/hsl.jpg',
+              fit: BoxFit.cover,
             ),
-            const SizedBox(height: 40),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: "Email"),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              child: Container(color: Colors.black.withOpacity(0.15)),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Password"),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () async {
-                String email = emailController.text.trim();
-                String password = passwordController.text.trim();
+          ),
 
-                // Firebase login
-                var user = await _authService.login(email, password);
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.link_rounded,
+                      color: Color(0xFFA68FFF),
+                      size: 40,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Chain App",
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Text(
+                      "Don’t break the chain 👣",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                    ),
 
-                if (user != null) {
-                  print("LOGIN SUCCESSFUL!");
+                    const SizedBox(height: 200),
 
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => StartingPage()),
-                  );
-                } else {
-                  print("LOGIN FAILED!");
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text("Login Failed")));
-                }
-              },
-              child: const Text("Login"),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () {
-                // 🔥 REGISTER SCREEN'E GİTME KODU
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RegisterScreen(),
-                  ),
-                );
-              },
-              child: const Text(
-                "Create an account",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.purple,
-                  decoration: TextDecoration.underline,
+                    // LOGIN CARD + PANDA
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 80, 20, 20),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.25),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  GestureDetector(
+                                    onTap: () => FocusScope.of(context)
+                                        .requestFocus(_emailFocusNode),
+                                    child: TextField(
+
+
+                                      focusNode: _emailFocusNode,
+                                      controller: _emailController,
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      decoration: _inputDecoration("Email"),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  GestureDetector(
+                                    onTap: () => FocusScope.of(context)
+                                        .requestFocus(_passwordFocusNode),
+                                    child: TextField(
+                                      focusNode: _passwordFocusNode,
+                                      controller: _passwordController,
+                                      obscureText: _obscurePassword,
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      decoration: _inputDecoration(
+                                        "Password",
+                                        suffix: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            color: Colors.white70,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _obscurePassword =
+                                                  !_obscurePassword;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  SizedBox(
+                                    height: 50,
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _isEmailLoading
+                                          ? null
+                                          : _loginWithEmail,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFA68FFF),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(18),
+                                        ),
+                                      ),
+                                      child: _isEmailLoading
+                                          ? const CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2)
+                                          : const Text("Login"),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    height: 48,
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: _isGoogleLoading
+                                          ? null
+                                          : _loginWithGoogle,
+                                      icon: const Icon(
+                                        Icons.g_mobiledata,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                      label: const Text(
+                                        "Continue with Google",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: -240,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Image.asset(
+                                _obscurePassword
+                                    ? 'assets/images/panda/panda_open.png'
+                                    : 'assets/images/panda/panda_closed.png',
+                                key: ValueKey(_obscurePassword),
+                                height: 500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Create an account",
+                        style: TextStyle(
+                          color: Colors.white,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    )
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

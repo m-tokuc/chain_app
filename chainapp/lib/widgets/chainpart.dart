@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-class chainpart extends StatelessWidget {
+class ChainPart extends StatelessWidget {
   final double rotationAngle;
 
-  // 1. Yeni Alanları Tanımlayın (home_screen.dart'tan gelen veriler)
+  // 1. Yeni Alanlar (Artık ChainPart olarak adlandırdık)
   final String chainName; // Zincir Adı
   final int streakCount; // Zincir Sayısı
   final Color statusColor; // Renk Bilgisi (Durum rengi: Yeşil/Kırmızı/Gri)
 
   // 2. Kurucuyu const olarak ve required parametrelerle güncelleyin
-  const chainpart({
+  const ChainPart({
     super.key,
     required this.rotationAngle,
     required this.chainName,
@@ -19,22 +19,20 @@ class chainpart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Zincir Halka Genişlik ve Yükseklikleri
+    // Zincir Halka Genişlik ve Yükseklikleri (Sizin HEAD'inizden aldık)
     const double linkWidth = 310.0;
     const double linkHeight = 190.0;
-    const double linkBorderWidth = 28.0;
+    const double linkBorderWidth = 28.0; // Kalınlık
 
-    // Transform.rotate kullanarak rotasyonu sağlayın
+    // Transform.rotate kullanarak rotasyonu sağlayın (HEAD mantığı)
     return Transform.rotate(
       angle: rotationAngle,
       child: Container(
         width: linkWidth,
         height: linkHeight,
-
-        // Zincir halkasının 3 boyutlu/kalın görünümünü oluşturur.
         child: Stack(
           children: [
-            // Dış Çerçeve (Gölge veya dış katman)
+            // Dış Çerçeve (HEAD'den)
             Container(
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.all(Radius.circular(150)),
@@ -45,32 +43,52 @@ class chainpart extends StatelessWidget {
               ),
             ),
 
-            // Ana Renkli Halka (BlueAccent/Durum Rengi)
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(Radius.circular(150)),
-                border: Border.all(
-                  color: statusColor, // Artık statusColor'ı kullanıyoruz
-                  width: linkBorderWidth,
+            // Ana Renkli Halka (HEAD ve Arkadaşınızın Gradient Mantığı Birleştirildi)
+            // Arkadaşınızın Gradient tasarımını koruyup, StatusColor'ı fallback olarak kullanıyoruz.
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                // Burada arkadaşınızın modern Gradient renkleri kullanılıyor
+                return const LinearGradient(
+                  colors: [
+                    Color(0xFF6C5ECF), // Mor
+                    Color(0xFF3B82F6), // Mavi
+                    Colors.purpleAccent // Açık Mor
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.srcATop,
+              child: Container(
+                width: linkWidth,
+                height: linkHeight,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.all(Radius.circular(150)),
+                  border: Border.all(
+                    // Burada StatusColor kullanılacak, ancak gradyanın üzerine geleceği için görünmez olabilir.
+                    // Bu katman için kalınlık ve durumu HEAD'den alalım:
+                    color: statusColor.withOpacity(0.8),
+                    width: linkBorderWidth,
+                  ),
                 ),
               ),
             ),
 
-            // İç Siyah Çerçeve (Ortayı belirler)
+            // İç Siyah Çerçeve (Ortayı belirler - HEAD'den)
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.all(Radius.circular(150)),
                   border: Border.all(
-                    color: Colors.black,
-                    width: 8,
+                    color: Colors.white,
+                    width: 4,
                   ),
                 ),
               ),
             ),
 
-            // 3. Veri Alanları (Halkanın Ortası - SİZİN HEAD MANTIĞINIZ)
+            // Veri Alanları (Halkanın Ortası - HEAD mantığı)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -86,8 +104,7 @@ class chainpart extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '$streakCount Days', // Streak Sayısı
-                    style: TextStyle(
-                      // Not: Streak rengini beyaz yaptım, çünkü ana halka rengini statusColor ile zaten belirledik.
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -103,7 +120,7 @@ class chainpart extends StatelessWidget {
   }
 }
 
-// AreaClipper sınıfı (Çakışma çözüldü)
+// AreaClipper sınıfı (Çakışma çözüldü ve korundu)
 class AreaClipper extends CustomClipper<Rect> {
   final Rect clipRect;
   // const constructor'ı HEAD'den aldık
