@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-
 import '../services/chain_service.dart';
 import '../services/firebase_auth_service.dart';
 import 'invite_code_screen.dart';
@@ -13,48 +11,73 @@ class CreateChainScreen extends StatefulWidget {
 }
 
 class _CreateChainScreenState extends State<CreateChainScreen> {
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _chainService = ChainService();
+  final _authService = FirebaseAuthService();
 
-  final ChainService _chainService = ChainService();
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  final nameController = TextEditingController();
+  final descriptionController = TextEditingController();
 
-  bool _isLoading = false;
-  String _period = "daily";
+  String selectedPeriod = "daily";
+  final List<String> selectedDays = [];
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+  final List<String> weekDays = [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun",
+  ];
+
+  bool isLoading = false;
+
+  void toggleDay(String day) {
+    setState(() {
+      if (selectedDays.contains(day)) {
+        selectedDays.remove(day);
+      } else {
+        selectedDays.add(day);
+      }
+    });
   }
 
-  Future<void> _createChain() async {
-    final name = _nameController.text.trim();
-    final description = _descriptionController.text.trim();
+  Future<void> createChain() async {
     final userId = _authService.currentUserId();
+    if (userId == null) return;
 
-    if (name.isEmpty || userId == null) {
+    if (nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a chain name")),
+        const SnackBar(content: Text("Chain name is required")),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
+    if (selectedPeriod == "weekly" && selectedDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Select at least one day")),
+      );
+      return;
+    }
 
-    final inviteCode = await _chainService.generateUniqueInviteCode();
+    setState(() => isLoading = true);
 
-    await _chainService.createChain(
-      name: name,
-      description: description,
-      period: _period,
+    final inviteCode = await _chainService.createChain(
+      name: nameController.text.trim(),
+      description: descriptionController.text.trim(),
+      period: selectedPeriod,
       members: [userId],
+      days: selectedPeriod == "weekly" ? selectedDays : [],
     );
 
-    setState(() => _isLoading = false);
+    setState(() => isLoading = false);
 
-    if (!mounted) return;
+    if (inviteCode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to create chain")),
+      );
+      return;
+    }
 
     Navigator.pushReplacement(
       context,
@@ -67,157 +90,86 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          "Create Chain",
-          style: TextStyle(color: Colors.white),
+        title: const Text("Create Chain"),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Chain Name"),
+            const SizedBox(height: 6),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "e.g. Read every day",
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text("Description"),
+            const SizedBox(height: 6),
+            TextField(
+              controller: descriptionController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "Optional description",
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text("Period"),
+            RadioListTile(
+              title: const Text("Daily"),
+              value: "daily",
+              groupValue: selectedPeriod,
+              onChanged: (v) {
+                setState(() {
+                  selectedPeriod = v!;
+                  selectedDays.clear();
+                });
+              },
+            ),
+            RadioListTile(
+              title: const Text("Weekly"),
+              value: "weekly",
+              groupValue: selectedPeriod,
+              onChanged: (v) {
+                setState(() => selectedPeriod = v!);
+              },
+            ),
+            if (selectedPeriod == "weekly") ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: weekDays.map((day) {
+                  final isSelected = selectedDays.contains(day);
+                  return ChoiceChip(
+                    label: Text(day),
+                    selected: isSelected,
+                    onSelected: (_) => toggleDay(day),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : createChain,
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Create Chain",
+                        style: TextStyle(fontSize: 16),
+                      ),
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Stack(
-        children: [
-          // BACKGROUND
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF0A0E25),
-                    Color(0xFF6C5ECF),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Chain Name",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _nameController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration("e.g. Daily Reading"),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            "Description (optional)",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _descriptionController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration:
-                                _inputDecoration("What is this chain about?"),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            "Period",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: _period,
-                            dropdownColor: const Color(0xFF1F3D78),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: "daily", child: Text("Daily")),
-                              DropdownMenuItem(
-                                  value: "weekly", child: Text("Weekly")),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _period = value ?? "daily";
-                              });
-                            },
-                            decoration: _inputDecoration(""),
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          const SizedBox(height: 30),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _createChain,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFA68FFF),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    )
-                                  : const Text(
-                                      "Create Chain",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.08),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide.none,
       ),
     );
   }
