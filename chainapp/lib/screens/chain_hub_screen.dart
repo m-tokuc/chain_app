@@ -1,12 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
-import '../services/chain_service.dart';
-import '../services/firebase_auth_service.dart';
-import 'create_chain_screen.dart';
-import 'join_chain_screen.dart';
-import 'home_screen.dart';
-import 'login_screen.dart';
+import 'package:chainapp/services/chain_service.dart';
+import 'package:chainapp/services/firebase_auth_service.dart';
+import 'package:chainapp/screens/create_chain_screen.dart';
+import 'package:chainapp/screens/join_chain_screen.dart';
+import 'package:chainapp/screens/home_screen.dart';
 
 class ChainHubScreen extends StatelessWidget {
   const ChainHubScreen({super.key});
@@ -21,18 +19,11 @@ class ChainHubScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.logout, color: Colors.white),
-          onPressed: () async {
-            await authService.logout();
-
-            if (context.mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
-                ),
-              );
-            }
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            // HomeScreen'e tekrar pushlamak yerine direkt geri dönmek daha temiz
+            // Eğer bu sayfaya pushReplacement ile geldiysen pop çalışır.
+            Navigator.pop(context);
           },
         ),
         title: const Text(
@@ -86,7 +77,8 @@ class ChainHubScreen extends StatelessWidget {
                                 ConnectionState.waiting) {
                               return const Center(
                                 child: CircularProgressIndicator(
-                                    color: Colors.white),
+                                  color: Colors.white,
+                                ),
                               );
                             }
 
@@ -97,7 +89,8 @@ class ChainHubScreen extends StatelessWidget {
                               return Center(
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 32),
+                                    horizontal: 32,
+                                  ),
                                   child: Text(
                                     "You haven’t joined any chains yet.\nCreate one or join with an invite code to get started.",
                                     textAlign: TextAlign.center,
@@ -113,7 +106,9 @@ class ChainHubScreen extends StatelessWidget {
                             // ✅ CHAIN CARDS (ALT ALTA)
                             return ListView.builder(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 10),
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
                               itemCount: chains.length,
                               itemBuilder: (context, index) {
                                 final chain = chains[index];
@@ -145,8 +140,9 @@ class ChainHubScreen extends StatelessWidget {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                chain["name"] ??
-                                                    "Unnamed Chain",
+                                                (chain["name"] ??
+                                                        "Unnamed Chain")
+                                                    .toString(),
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 18,
@@ -156,6 +152,7 @@ class ChainHubScreen extends StatelessWidget {
                                               const SizedBox(height: 6),
                                               Text(
                                                 (chain["period"] ?? "daily")
+                                                    .toString()
                                                     .toUpperCase(),
                                                 style: TextStyle(
                                                   color: Colors.white
@@ -185,18 +182,21 @@ class ChainHubScreen extends StatelessWidget {
                 // ➕ CREATE / 🔑 JOIN BUTTONS
                 // ===============================
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
                   child: Row(
                     children: [
-                      // CREATE CHAIN
+                      // CREATE CHAIN (karemsi)
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const CreateChainScreen()),
+                                builder: (_) => CreateChainScreen(),
+                              ),
                             );
                           },
                           child: Container(
@@ -221,14 +221,15 @@ class ChainHubScreen extends StatelessWidget {
 
                       const SizedBox(width: 16),
 
-                      // JOIN CHAIN
+                      // JOIN CHAIN (karemsi)
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const JoinChainScreen()),
+                                builder: (_) => const JoinChainScreen(),
+                              ),
                             );
                           },
                           child: Container(

@@ -1,12 +1,40 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // FieldValue için gerekli
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import '../models/chain_model.dart';
 import '../models/chain_log_model.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  Future<void> saveDeviceToken(String userId) async {
+    try {
+      // 1. İzin İste (iOS için zorunlu, Android için iyi pratik)
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // 2. Token'ı Al (Telefonun dijital adresi)
+        String? token = await messaging.getToken();
+
+        if (token != null) {
+          // 3. Veritabanına Kaydet
+          await _db.collection('users').doc(userId).update({
+            'fcmToken': token, // UserModel'deki alanla aynı isimde olmalı
+          });
+          print("Bildirim Tokenı Kaydedildi: $token");
+        }
+      } else {
+        print('Kullanıcı bildirim izni vermedi.');
+      }
+    } catch (e) {
+      print("Token hatası: $e");
+    }
+  }
   // ------------------------------------
   // I. KULLANICI İŞLEMLERİ (UserModel)
   // ------------------------------------
@@ -24,7 +52,6 @@ class FirestoreService {
   Stream<UserModel> streamUser(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((snapshot) {
       if (!snapshot.exists || snapshot.data() == null) {
-        // Belge yoksa veya null ise hatalı varsayılan bir kullanıcı döndür
         return const UserModel(
             uid: 'HATA', email: '', username: 'Hata', groupIds: []);
       }
@@ -39,7 +66,6 @@ class FirestoreService {
   // 3. Yeni bir grup/zincir oluşturur
   Future<void> createChain(ChainModel chain) async {
     try {
-      // Modeldeki id alanını belge ID'si olarak kullanır
       await _db.collection('chains').doc(chain.id).set(chain.toMap());
     } catch (e) {
       print('Zincir oluşturma hatası: $e');
@@ -49,8 +75,22 @@ class FirestoreService {
   // 4. Grup/Zincir bilgisini gerçek zamanlı okur
   Stream<ChainModel> streamChain(String chainId) {
     return _db.collection('chains').doc(chainId).snapshots().map((snapshot) {
-      // Modelinizdeki fromMap metodunu kullanır
       return ChainModel.fromMap(snapshot.id, snapshot.data()!);
+    });
+  }
+
+  // 📌 EKLENDİ (home_screen.dart'ın talep ettiği metot)
+  // Kullanıcının üye olduğu tüm zincirleri gerçek zamanlı okur.
+  Stream<List<ChainModel>> streamUserChains(String userId) {
+    return _db
+        .collection('chains')
+        .where('members', arrayContains: userId)
+        .snapshots()
+        .map((snapshot) {
+      // Gelen belgeler listesini (QuerySnapshot), ChainModel listesine çevirir.
+      return snapshot.docs.map((doc) {
+        return ChainModel.fromMap(doc.id, doc.data());
+      }).toList();
     });
   }
 
@@ -58,13 +98,11 @@ class FirestoreService {
   // III. CHECK-IN İŞLEMLERİ (ChainLog)
   // ------------------------------------
 
-  // 5. Günlük Check-in işlemini yapar ve Log kaydı oluşturur (Çok Önemli!)
-  // Bu metot, projenizin ana özelliğine doğrudan bağlıdır.
+  // 5. Günlük Check-in işlemini yapar ve Log kaydı oluşturur
   Future<void> performCheckIn(
       String chainId, String userId, ChainLog logData) async {
     try {
       // a) ChainLog koleksiyonuna giriş kaydını ekle
-      // Bu, check-in geçmişinin kaydıdır.
       await _db
           .collection('chains')
           .doc(chainId)
@@ -72,10 +110,7 @@ class FirestoreService {
           .add(logData.toMap());
 
       // b) ChainModel'deki ilgili alanları güncelle
-      // membersCompletedToday: O gün check-in yapanları takip eden geçici bir liste.
-      // Bu liste, Cloud Function ile her gün sıfırlanmalıdır.
       await _db.collection('chains').doc(chainId).update({
-        // Geçici bir alan: Bugün tamamlayanlar listesine kullanıcıyı ekle.
         'membersCompletedToday': FieldValue.arrayUnion([userId]),
       });
     } catch (e) {
@@ -98,5 +133,68 @@ class FirestoreService {
     await _db.collection('chains').doc(chainId).update({
       'members': FieldValue.arrayUnion([userId]),
     });
+  }
+
+  // GÜNLÜK ZİNCİR KONTROLÜ (Telefon Saatiyle)
+  Future<void> checkChainsOnAppStart(String userId) async {
+    try {
+      final snapshot = await _db
+          .collection('chains')
+          .where('members', arrayContains: userId)
+          .get();
+
+      final now = DateTime.now();
+      final String todayStr =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      final yesterday = now.subtract(const Duration(days: 1));
+      final String yesterdayStr =
+          "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final String status = data['status'] ?? 'active';
+        final String? lastCheckIn = data['lastCheckInDate'];
+
+        if (status == 'broken') continue;
+
+        if (lastCheckIn == null) continue;
+
+        if (lastCheckIn == todayStr) {
+          if (status == 'warning') {
+            await doc.reference.update({'status': 'active'});
+          }
+          continue;
+        }
+
+        if (lastCheckIn == yesterdayStr) {
+          if (now.hour >= 12) {
+            if (status != 'broken') {
+              await doc.reference.update({
+                'status': 'broken',
+                'streakCount': 0,
+                'brokenAt': FieldValue.serverTimestamp(),
+              });
+              print("${doc.id} zinciri kırıldı (Öğlen 12'yi geçti).");
+            }
+          } else {
+            if (status != 'warning') {
+              await doc.reference.update({'status': 'warning'});
+              print("${doc.id} zinciri uyarı moduna geçti.");
+            }
+          }
+        } else {
+          if (status != 'broken') {
+            await doc.reference.update({
+              'status': 'broken',
+              'streakCount': 0,
+              'brokenAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Günlük kontrol hatası: $e");
+    }
   }
 }

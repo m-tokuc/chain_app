@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-
 import '../services/firebase_auth_service.dart';
 import 'register_screen.dart';
 import 'chain_hub_screen.dart';
@@ -17,9 +16,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = FirebaseAuthService();
 
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
   bool _isEmailLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
 
   // ---------------- EMAIL LOGIN ----------------
   Future<void> _loginWithEmail() async {
@@ -171,13 +182,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
+
+                                  // EMAIL
                                   TextField(
+                                    focusNode: _emailFocusNode,
                                     controller: _emailController,
                                     style: const TextStyle(color: Colors.white),
                                     decoration: _inputDecoration("Email"),
                                   ),
+
                                   const SizedBox(height: 16),
+
+                                  // PASSWORD
                                   TextField(
+                                    focusNode: _passwordFocusNode,
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
                                     style: const TextStyle(color: Colors.white),
@@ -199,7 +217,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
+
                                   const SizedBox(height: 20),
+
+                                  // LOGIN BUTTON
                                   SizedBox(
                                     height: 50,
                                     width: double.infinity,
@@ -222,7 +243,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                           : const Text("Login"),
                                     ),
                                   ),
+
                                   const SizedBox(height: 16),
+
+                                  // GOOGLE LOGIN
                                   SizedBox(
                                     height: 48,
                                     width: double.infinity,
@@ -230,14 +254,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                       onPressed: _isGoogleLoading
                                           ? null
                                           : _loginWithGoogle,
-                                      icon: const Icon(
-                                        Icons.g_mobiledata,
-                                        color: Colors.white,
-                                        size: 28,
-                                      ),
-                                      label: const Text(
-                                        "Continue with Google",
-                                        style: TextStyle(color: Colors.white),
+                                      icon: _isGoogleLoading
+                                          ? const SizedBox(
+                                              height: 22,
+                                              width: 22,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.g_mobiledata,
+                                              color: Colors.white,
+                                              size: 28,
+                                            ),
+                                      label: Text(
+                                        _isGoogleLoading
+                                            ? "Signing in..."
+                                            : "Continue with Google",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -246,6 +284,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+
+                        // PANDA
                         Positioned(
                           top: -240,
                           left: 0,
@@ -268,6 +308,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
+                    // REGISTER
                     TextButton(
                       onPressed: () {
                         Navigator.push(
