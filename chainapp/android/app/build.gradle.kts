@@ -5,19 +5,19 @@ plugins {
 }
 
 android {
-    namespace = "com.example.chainapp" // <-- BURAYI KENDİ PAKET ADINLA DEĞİŞTİR (AndroidManifest.xml'de package="..." yazar)
+    namespace = "com.example.chainapp" // Kendi paket adınla değiştir
     compileSdk = flutter.compileSdkVersion
-    
-    // İşte sihirli satır burada olmalı:
     ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Java 17 kullanıyoruz (Hata giderildi)
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     sourceSets {
@@ -25,7 +25,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.chainapp" // <-- BURAYI KENDİ PAKET ADINLA DEĞİŞTİR
+        applicationId = "com.example.chainapp" // Kendi paket adınla değiştir
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -40,6 +40,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 
 flutter {

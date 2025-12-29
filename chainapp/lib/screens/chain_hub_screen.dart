@@ -1,40 +1,51 @@
 import 'package:flutter/material.dart';
+import '../services/chain_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/firestore_service.dart'; // 🔥 Eklendi
+import 'create_chain_screen.dart';
+import 'join_chain_screen.dart';
+import 'home_screen.dart';
 
-import 'package:chainapp/services/chain_service.dart';
-import 'package:chainapp/services/firebase_auth_service.dart';
-import 'package:chainapp/screens/create_chain_screen.dart';
-import 'package:chainapp/screens/join_chain_screen.dart';
-import 'package:chainapp/screens/home_screen.dart';
-
-class ChainHubScreen extends StatelessWidget {
+// 🔥 ARTIK STATEFUL WIDGET (Başlangıçta kontrol yapmak için)
+class ChainHubScreen extends StatefulWidget {
   const ChainHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final chainService = ChainService();
-    final authService = FirebaseAuthService();
-    final userId = authService.currentUserId();
+  State<ChainHubScreen> createState() => _ChainHubScreenState();
+}
 
+class _ChainHubScreenState extends State<ChainHubScreen> {
+  final chainService = ChainService();
+  final authService = FirebaseAuthService();
+  late String? userId;
+
+  @override
+  void initState() {
+    super.initState();
+    userId = authService.currentUserId();
+
+    // 🔥 UYGULAMA AÇILINCA ZİNCİR KONTROLÜ YAP (XP CEZA SİSTEMİ)
+    if (userId != null) {
+      FirestoreService().checkChainsOnAppStart(userId!);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            // HomeScreen'e tekrar pushlamak yerine direkt geri dönmek daha temiz
-            // Eğer bu sayfaya pushReplacement ile geldiysen pop çalışır.
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           "Your Chains",
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
       body: Stack(
+        fit: StackFit.expand, // 🔥 Ekranı tam doldurma garantisi
         children: [
           // 🌌 BACKGROUND
           Positioned.fill(
@@ -65,60 +76,80 @@ class ChainHubScreen extends StatelessWidget {
                 Expanded(
                   child: userId == null
                       ? const Center(
-                          child: Text(
-                            "User not logged in",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        )
+                          child: Text("User not logged in",
+                              style: TextStyle(color: Colors.white)))
                       : StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: chainService.getUserChains(userId),
+                          stream: chainService.getUserChains(userId!),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
                               return const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
-                              );
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xFFA68FFF)));
                             }
 
                             final chains = snapshot.data ?? [];
 
-                            // ❗ EMPTY STATE
+                            // ❗ BOŞ DURUM
                             if (chains.isEmpty) {
                               return Center(
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                  ),
-                                  child: Text(
-                                    "You haven’t joined any chains yet.\nCreate one or join with an invite code to get started.",
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontSize: 14,
-                                    ),
+                                      horizontal: 32),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.link_off,
+                                          size: 60,
+                                          color: Colors.white.withOpacity(0.3)),
+                                      const SizedBox(height: 20),
+                                      Text(
+                                        "You haven’t joined any chains yet.\nCreate one or join with an invite code.",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            color:
+                                                Colors.white.withOpacity(0.7),
+                                            fontSize: 14),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );
                             }
 
-                            // ✅ CHAIN CARDS (ALT ALTA)
+                            // ✅ ZİNCİR LİSTESİ
                             return ListView.builder(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
-                              ),
+                                  horizontal: 20, vertical: 10),
                               itemCount: chains.length,
                               itemBuilder: (context, index) {
                                 final chain = chains[index];
+
+                                // 🔥 GÜVENLİ VERİ ÇEKME
+                                final String chainId =
+                                    chain['id']?.toString() ?? '';
+                                final String chainName =
+                                    chain['name']?.toString() ??
+                                        'Unnamed Chain';
+                                final String period =
+                                    chain['period']?.toString() ?? 'daily';
+
+                                // Zincir durumu (Kırık mı?)
+                                final String status =
+                                    chain['status']?.toString() ?? 'active';
+                                final bool isBroken = status == 'broken';
+
+                                if (chainId.isEmpty) return const SizedBox();
 
                                 return GestureDetector(
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const HomeScreen(),
+                                        builder: (_) => HomeScreen(
+                                          chainId: chainId,
+                                          chainName: chainName,
+                                        ),
                                       ),
                                     );
                                   },
@@ -126,48 +157,92 @@ class ChainHubScreen extends StatelessWidget {
                                     margin: const EdgeInsets.only(bottom: 14),
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(16),
+                                      // Kırık zincirleri kırmızımsı, normal zincirleri şeffaf yap
+                                      color: isBroken
+                                          ? Colors.red.withOpacity(0.1)
+                                          : Colors.white.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.25),
-                                      ),
+                                          color: isBroken
+                                              ? Colors.redAccent
+                                                  .withOpacity(0.3)
+                                              : Colors.white.withOpacity(0.15)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        )
+                                      ],
                                     ),
                                     child: Row(
                                       children: [
+                                        // İkon
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: isBroken
+                                                ? Colors.redAccent
+                                                    .withOpacity(0.2)
+                                                : const Color(0xFFA68FFF)
+                                                    .withOpacity(0.2),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                              isBroken
+                                                  ? Icons.broken_image
+                                                  : Icons.link,
+                                              color: isBroken
+                                                  ? Colors.redAccent
+                                                  : const Color(0xFFA68FFF)),
+                                        ),
+                                        const SizedBox(width: 16),
+
+                                        // Yazılar
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                (chain["name"] ??
-                                                        "Unnamed Chain")
-                                                    .toString(),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                (chain["period"] ?? "daily")
-                                                    .toString()
-                                                    .toUpperCase(),
+                                                chainName,
                                                 style: TextStyle(
-                                                  color: Colors.white
-                                                      .withOpacity(0.7),
-                                                  fontSize: 12,
-                                                ),
+                                                    color: isBroken
+                                                        ? Colors.red[200]
+                                                        : Colors.white,
+                                                    fontSize: 18,
+                                                    decoration: isBroken
+                                                        ? TextDecoration
+                                                            .lineThrough
+                                                        : null,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                isBroken
+                                                    ? "CHAIN BROKEN!"
+                                                    : period.toUpperCase(),
+                                                style: TextStyle(
+                                                    color: isBroken
+                                                        ? Colors.redAccent
+                                                        : Colors.white
+                                                            .withOpacity(0.6),
+                                                    fontSize: 12,
+                                                    fontWeight: isBroken
+                                                        ? FontWeight.bold
+                                                        : FontWeight.normal,
+                                                    letterSpacing: 1),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const Icon(
-                                          Icons.arrow_forward_ios,
-                                          color: Colors.white70,
-                                          size: 16,
-                                        ),
+                                        Icon(Icons.arrow_forward_ios,
+                                            color: isBroken
+                                                ? Colors.redAccent
+                                                    .withOpacity(0.5)
+                                                : Colors.white38,
+                                            size: 16),
                                       ],
                                     ),
                                   ),
@@ -179,76 +254,64 @@ class ChainHubScreen extends StatelessWidget {
                 ),
 
                 // ===============================
-                // ➕ CREATE / 🔑 JOIN BUTTONS
+                // ➕ BUTONLAR
                 // ===============================
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 20,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
                   child: Row(
                     children: [
-                      // CREATE CHAIN (karemsi)
+                      // CREATE CHAIN
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => CreateChainScreen(),
-                              ),
-                            );
-                          },
+                                  builder: (_) => const CreateChainScreen())),
                           child: Container(
                             height: 56,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               color: const Color(0xFFA68FFF),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: const Color(0xFFA68FFF)
+                                        .withOpacity(0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4))
+                              ],
                             ),
                             child: const Center(
-                              child: Text(
-                                "Create Chain",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              child: Text("Create Chain",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 16),
-
-                      // JOIN CHAIN (karemsi)
+                      // JOIN CHAIN
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const JoinChainScreen(),
-                              ),
-                            );
-                          },
+                                  builder: (_) => const JoinChainScreen())),
                           child: Container(
                             height: 56,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.white.withOpacity(0.05),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.6),
-                              ),
+                                  color: Colors.white.withOpacity(0.3)),
                             ),
                             child: const Center(
-                              child: Text(
-                                "Join Chain",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              child: Text("Join Chain",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ),

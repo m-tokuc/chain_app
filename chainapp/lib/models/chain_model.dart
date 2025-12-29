@@ -1,72 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChainModel {
-  String id;
-  String name;
-  String description;
-  String period; // daily / weekly / custom
-  //List<String> members;
-  //String status; // active / broken
-  String? brokenBy;
-  Timestamp? brokenAt;
-  Timestamp createdAt;
-  Timestamp startDate;
+  final String id;
+  final String name;
+  final String purpose;
+  final String description;
+  final int? duration;
+  final String creatorId;
+  final String? inviteCode; // ✅ EKLENDİ
   final List<String> members;
-  final int streakCount;
+  final List<String> membersCompletedToday;
   final String status;
+  final int streakCount;
+  final DateTime createdAt;
 
   ChainModel({
     required this.id,
     required this.name,
+    this.purpose = '',
     required this.description,
-    required this.period,
+    this.duration,
+    required this.creatorId,
+    this.inviteCode, // ✅ EKLENDİ
     required this.members,
-    required this.status, // Bu alanın 'required' olması önemli
-    required this.streakCount, // Yeni eklenen zincir sayacı
-    this.brokenBy,
-    this.brokenAt,
+    required this.membersCompletedToday,
+    this.status = 'active',
+    this.streakCount = 0,
     required this.createdAt,
-    required this.startDate,
   });
 
-  // Firestore’dan model oluşturma
-  factory ChainModel.fromMap(String id, Map<String, dynamic> data) {
-    // StreakCount değeri yoksa 0 (sıfır) varsayımı yapıyoruz.
-    final int streakCount = data['streakCount'] as int? ?? 0;
-
-    return ChainModel(
-      id: id,
-      name: data['name'],
-      description: data['description'],
-      period: data['period'],
-      members:
-          List<String>.from(data['members'] ?? []), // Null kontrolü ekledik
-      status: data['status'],
-
-      streakCount: streakCount, // <--- Hata çözüldü! Yeni zorunlu alan eklendi.
-
-      brokenBy: data['brokenBy'],
-      brokenAt: data['brokenAt'],
-      createdAt: data['createdAt'],
-      startDate: data['startDate'],
-    );
-  }
-
-  // Modele göre Firestore’a yazılabilir map
   Map<String, dynamic> toMap() {
     return {
       'name': name,
+      'purpose': purpose,
       'description': description,
-      'period': period,
+      'duration': duration,
+      'creatorId': creatorId,
+      'inviteCode': inviteCode, // ✅ EKLENDİ
       'members': members,
+      'membersCompletedToday': membersCompletedToday,
       'status': status,
-
-      'streakCount': streakCount, // <--- Kaydetme işlemi için eklendi.
-
-      'brokenBy': brokenBy,
-      'brokenAt': brokenAt,
-      'createdAt': createdAt,
-      'startDate': startDate,
+      'streakCount': streakCount,
+      'createdAt': Timestamp.fromDate(createdAt),
     };
+  }
+
+  factory ChainModel.fromMap(String id, Map<String, dynamic> map) {
+    return ChainModel(
+      id: id,
+      name: map['name'] ?? '',
+      purpose: map['purpose'] ?? '',
+      description: map['description'] ?? '',
+      duration: map['duration'],
+      creatorId: map['creatorId'] ?? '',
+      inviteCode: map['inviteCode'], // ✅ EKLENDİ
+      members: List<String>.from(map['members'] ?? []),
+      membersCompletedToday:
+          List<String>.from(map['membersCompletedToday'] ?? []),
+      status: map['status'] ?? 'active',
+      streakCount: map['streakCount'] ?? 0,
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+    );
   }
 }

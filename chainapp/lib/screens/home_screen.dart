@@ -1,497 +1,602 @@
 import 'dart:ui';
-import 'package:chainapp/screens/chain_hub_screen.dart';
-import 'package:chainapp/screens/detailedstatisticsforchains.dart';
-import 'package:chainapp/screens/join_chain_screen.dart';
-import 'package:chainapp/widgets/chainpart.dart';
 import 'package:flutter/material.dart';
-
-// Sizin (HEAD) tarafınızdan eklenen importlar
-import '../models/chain_model.dart';
-import '../services/firebase_auth_service.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
-import 'login_screen.dart';
-import 'create_chain_screen.dart';
-
-// Custom Clipper sınıfı (Zincir kesişimi için gerekli)
-class AreaClipper extends CustomClipper<Rect> {
-  final Rect clipRect;
-  const AreaClipper(this.clipRect);
-  @override
-  Rect getClip(Size size) => clipRect;
-  @override
-  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => false;
-}
+import '../services/notification_service.dart';
+import '../models/chain_model.dart';
+import '../models/chain_log_model.dart';
+import 'chain_hub_screen.dart';
+import 'profile_screen.dart';
+import 'timer_screen.dart';
+import 'chain_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String chainId;
+  final String chainName;
+
+  const HomeScreen({
+    super.key,
+    required this.chainId,
+    required this.chainName,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Sizin (HEAD) tarafınızdan tanımlanan Servisler ve State'ler
-  final FirebaseAuthService _authService = FirebaseAuthService();
-  final FirestoreService _firestoreService = FirestoreService();
+  final _firestoreService = FirestoreService();
+  final _auth = FirebaseAuth.instance;
+  TimeOfDay? _notificationTime;
 
-  late String userId;
-  String? userEmail;
+  // --- ANA AKSİYON (CHECK-IN / REPAIR) ---
+  Future<void> _handleAction(ChainModel chain) async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
 
-  @override
-  void initState() {
-    super.initState();
-    userId = _authService.currentUserId() ?? "";
-    userEmail = _authService.getCurrentUserEmail();
+    // 1. Durum: Zincir Kırık -> Tamir Et
+    if (chain.status == 'broken') {
+      try {
+        await FirebaseFirestore.instance
+            .collection('chains')
+            .doc(chain.id)
+            .update({
+          'status': 'active',
+          'streakCount': 0,
+        });
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .update({'xp': FieldValue.increment(-50)});
 
-    // Zincir kontrolünü başlat
-    _gunlukKontroluYap();
-  }
-
-  // Zincir Kontrol Mantığı (HEAD'den)
-  Future<void> _gunlukKontroluYap() async {
-    if (userId.isNotEmpty) {
-      await _firestoreService.checkChainsOnAppStart(userId);
-      if (mounted) {
-        setState(() {});
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Chain Repaired! 50 XP used. 🛠️")));
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Error repairing chain: $e"),
+            backgroundColor: Colors.red));
       }
+      return;
+    }
+
+    // 2. Durum: 🔥 ONAY KUTUSU (DIALOG)
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // Dışarı tıklayınca kapanmasın
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1F3D78),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Complete Daily Goal?",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text(
+            "Are you sure you want to check in? This cannot be undone for today.",
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false), // İptal
+            child:
+                const Text("Cancel", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true), // 🔥 ONAYLA
+            child: const Text("Yes, I did it!",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    // Eğer "Yes" denmediyse dur.
+    if (confirm != true) return;
+
+    // 3. Durum: Normal Check-in (Veritabanı)
+    try {
+      final newLog = ChainLog(
+          userId: userId, logDate: DateTime.now(), note: "Manual Check-in");
+
+      await _firestoreService.performCheckIn(chain.id, userId, newLog);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Awesome! Streak continued! 🔥"),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
     }
   }
 
-  // Status String'ine göre renk döndüren helper fonksiyon (HEAD'den)
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case "active":
-        return Colors.greenAccent;
-      case "warning":
-        return Colors.orangeAccent;
-      case "broken":
-        return Colors.redAccent;
-      default:
-        return Colors.grey;
+  // --- BİLDİRİM SAATİ SEÇME ---
+  Future<void> _pickTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFA68FFF),
+              onPrimary: Colors.white,
+              surface: Color(0xFF142A52),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() => _notificationTime = picked);
+      await NotificationService().scheduleDailyNotification(
+        id: widget.chainId.hashCode,
+        title: "Keep the streak alive! 🔥",
+        body: "Don't forget to check in for ${widget.chainName}",
+        time: picked,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Daily reminder set for ${picked.format(context)} ⏰")));
     }
+  }
+
+  // --- ZİNCİR HALKASI GÖRÜNÜMÜ ---
+  Widget _buildChainNode(
+      String dayNum, bool isDone, bool isToday, bool isLast) {
+    return Container(
+      width: 60,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (!isLast)
+            Positioned(
+              right: 0,
+              left: 30,
+              child: Container(
+                  height: 4,
+                  color: isDone ? Colors.greenAccent : Colors.white24),
+            ),
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: isDone
+                  ? Colors.green
+                  : (isToday
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.transparent),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDone
+                    ? Colors.greenAccent
+                    : (isToday ? Colors.white : Colors.white24),
+                width: isToday ? 2 : 1,
+              ),
+              boxShadow: isDone
+                  ? [
+                      BoxShadow(
+                          color: Colors.green.withOpacity(0.5), blurRadius: 10)
+                    ]
+                  : [],
+            ),
+            child: Center(
+              child: isDone
+                  ? const Icon(Icons.check, color: Colors.white, size: 24)
+                  : Text(dayNum,
+                      style: TextStyle(
+                          color: isToday ? Colors.white : Colors.white54,
+                          fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 AVATAR GÖRÜNÜMÜ (Yeşil/Kırmızı Çerçeve)
+  Widget _buildMemberAvatar(String memberId, bool isCompleted) {
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance.collection('users').doc(memberId).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final avatarSeed = data?['avatarSeed'] ?? 'user';
+        return Padding(
+          padding: const EdgeInsets.only(right: 12.0),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      // Yapıldıysa YEŞİL, Yapılmadıysa KIRMIZIMSI
+                      color: isCompleted
+                          ? Colors.greenAccent
+                          : Colors.redAccent.withOpacity(0.6),
+                      width: 2.5),
+                  boxShadow: isCompleted
+                      ? [
+                          BoxShadow(
+                              color: Colors.green.withOpacity(0.3),
+                              blurRadius: 8)
+                        ]
+                      : [],
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.black26,
+                  backgroundImage: NetworkImage(
+                      "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomBar(BuildContext context, ChainModel chain) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const ChainHubScreen())),
+            icon:
+                const Icon(Icons.home_filled, color: Colors.white70, size: 32),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => TimerScreen(chain: chain))),
+            child: Container(
+              width: 55,
+              height: 55,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F3D78),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white24),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFFA68FFF).withOpacity(0.3),
+                      blurRadius: 10)
+                ],
+              ),
+              child: const Icon(Icons.timer, color: Colors.white, size: 28),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            icon: const Icon(Icons.person, color: Colors.white70, size: 32),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ekran boyutlarını alalım (Arkadaşınızdan geldi)
-    final screenHeight = MediaQuery.of(context).size.height;
+    final currentUserId = _auth.currentUser?.uid;
 
-    return Scaffold(
-      // FloatingActionButton (Arkadaşınızdan gelen şık FAB)
-      floatingActionButton: SizedBox(
-        height: 65,
-        width: 65,
-        child: FloatingActionButton(
-          onPressed: () {
-            // ❗ const kaldırıldı
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CreateChainScreen(),
-                ));
-          },
-          backgroundColor: const Color(0xFF6C5ECF),
-          elevation: 10,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, size: 35, color: Colors.white),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      extendBodyBehindAppBar: true,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('chains')
+          .doc(widget.chainId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Scaffold(
+              backgroundColor: Color(0xFF0A0E25),
+              body: Center(
+                  child: CircularProgressIndicator(color: Colors.white)));
+        }
 
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            // ❗ const kaldırıldı
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChainHubScreen(),
-              ),
-            );
-          },
-        ),
-        automaticallyImplyLeading: false,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(20),
-          ),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: const Text(
-          "Chain App",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          // Logout Butonu (HEAD ve Arkadaşınızın kodu birleştirildi)
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              await _authService.logout();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
+        final chainData = snapshot.data!.data() as Map<String, dynamic>;
+        final chain = ChainModel.fromMap(snapshot.data!.id, chainData);
 
-      extendBody: true,
-      body: Stack(
-        children: [
-          // 1. Gradient Arka Plan
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF0A0E25),
-                    Color(0xFF142A52),
-                    Color(0xFF1F3D78),
-                    Color(0xFF6C5ECF)
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
+        final bool isCompletedToday =
+            chain.membersCompletedToday.contains(currentUserId);
+        final bool isBroken = chain.status == 'broken';
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF0A0E25),
+          bottomNavigationBar: _buildBottomBar(context, chain),
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            title: Text(chain.name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.white)),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.notifications_active,
+                    color: _notificationTime != null
+                        ? Colors.amber
+                        : Colors.white54),
+                onPressed: _pickTime,
+              )
+            ],
           ),
-
-          // Zincir Başlığı (Arkadaşınızdan gelen başlık)
-          Positioned(
-            top: screenHeight / 8,
-            left: 0,
-            right: 0,
-            child: const Text(
-              textAlign: TextAlign.center,
-              "Your Chain",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          // 2. Dinamik Zincir Listesi (StreamBuilder) - HEAD Mantığı KORUNDU
-          Positioned(
-            top: 220,
-            left: 0,
-            right: 0,
-            height: 400,
-            child: StreamBuilder<List<ChainModel>>(
-              stream: _firestoreService.streamUserChains(userId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "No Chains Found. Create one!",
-                      style: TextStyle(color: Colors.white54, fontSize: 18),
-                    ),
-                  );
-                }
-
-                final chains = snapshot.data!;
-                const double linkWidth = 310.0;
-                const double shiftAmount = 190.0;
-                const double myWidthFactor = shiftAmount / linkWidth;
-
-                return ListView.builder(
-                  cacheExtent: 1000,
-                  scrollDirection: Axis.horizontal,
-                  clipBehavior: Clip.none,
-                  padding: const EdgeInsets.only(left: 40, right: 100),
-                  itemCount: chains.length,
-                  itemBuilder: (context, index) {
-                    final ChainModel chainData = chains[index];
-
-                    final bool isEven = index % 2 == 0;
-                    final double currentAngle = isEven ? -0.3 : 0.1;
-                    final double currentTop = isEven ? 80.0 : 0.0;
-                    final double prevTop = isEven ? 0.0 : 80.0;
-                    final double topDiff = prevTop - currentTop;
-
-                    final Color linkColor = _getStatusColor(chainData.status);
-
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      widthFactor: myWidthFactor,
-                      child: Transform.translate(
-                        offset: Offset(0, currentTop),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            ChainPart(
-                              rotationAngle: currentAngle,
-                              chainName: chainData.name,
-                              streakCount: chainData.streakCount,
-                              statusColor: linkColor,
-                            ),
-                            if (index > 0)
-                              Positioned(
-                                left: -shiftAmount,
-                                top: topDiff,
-                                child: ClipRect(
-                                  clipper: AreaClipper(
-                                    const Rect.fromLTWH(190, 0, 120, 120),
-                                  ),
-                                  child: ChainPart(
-                                    rotationAngle: isEven ? 0.1 : -0.3,
-                                    chainName: "",
-                                    streakCount: 0,
-                                    statusColor: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          // 3. Story + Description (Arkadaşınızdan gelen)
-          Positioned(
-            top: (screenHeight / 7) + 300,
-            bottom: 90,
-            left: 0,
-            right: 0,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
-                  child: Text(
-                    "Zincirdekiler",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF0A0E25),
+                      Color(0xFF1F3D78),
+                      Color(0xFF6C5ECF)
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
-                SizedBox(
-                  height: MediaQuery.of(context).size.height / 8,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 10,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. ZİNCİR
+                      SizedBox(
+                        height: 60,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: 7,
+                          itemBuilder: (context, index) {
+                            final date = DateTime.now()
+                                .subtract(Duration(days: 3 - index));
+                            final dayNum = DateFormat('d').format(date);
+                            final isToday = index == 3;
+                            final isFuture = index > 3;
+
+                            bool isDone = false;
+                            if (isToday)
+                              isDone = isCompletedToday;
+                            else if (!isFuture &&
+                                index >= (3 - chain.streakCount)) isDone = true;
+
+                            return _buildChainNode(
+                                dayNum, isDone, isToday, index == 6);
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // 2. 🔥 AKSİYON BUTONU (GÜNCELLENMİŞ TASARIM)
+                      GestureDetector(
+                        // Yapıldıysa Tıklanmasın, Kırıksa Tamir, Değilse Check-in
+                        onTap: isCompletedToday
+                            ? null
+                            : () => _handleAction(chain),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF6C5ECF),
-                                    Colors.purpleAccent
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
-                                  )
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1)),
+                              ),
+                              child: Row(
+                                children: [
+                                  // BUTON
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    width: 55,
+                                    height: 55,
+                                    decoration: BoxDecoration(
+                                      // 🔥 YAPILDIYSA: YEŞİL
+                                      // 🔥 KIRIKSA: KIRMIZI
+                                      // 🔥 YAPILMADIYSA: ŞEFFAF
+                                      color: isBroken
+                                          ? Colors.red
+                                          : (isCompletedToday
+                                              ? Colors.green
+                                              : Colors.transparent),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          // Çerçeve Rengi
+                                          color: isBroken
+                                              ? Colors.redAccent
+                                              : (isCompletedToday
+                                                  ? Colors.green
+                                                  : Colors
+                                                      .white54), // Beyaz/Gri Çerçeve
+                                          width: 2),
+                                      boxShadow: isCompletedToday
+                                          ? [
+                                              BoxShadow(
+                                                  color: Colors.green
+                                                      .withOpacity(0.5),
+                                                  blurRadius: 15)
+                                            ]
+                                          : [],
+                                    ),
+                                    child: Center(
+                                      child: isBroken
+                                          ? const Icon(Icons.build,
+                                              color: Colors.white)
+                                          : (isCompletedToday
+                                              // 🔥 TİK İKONU ARKA PLAN RENGİNDE (DELİK GİBİ GÖRÜNSÜN)
+                                              ? const Icon(Icons.check,
+                                                  color: Color(0xFF0A0E25),
+                                                  size: 30,
+                                                  weight: 800)
+                                              : null), // YAPILMADIYSA BOŞ
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 16),
+
+                                  // YAZILAR
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                            isBroken
+                                                ? "Chain Broken!"
+                                                : "Daily Goal",
+                                            style: TextStyle(
+                                                color: isBroken
+                                                    ? Colors.redAccent
+                                                    : Colors.white54,
+                                                fontSize: 12)),
+                                        Text(
+                                          isBroken
+                                              ? "Tap to Repair (50 XP)"
+                                              : (chain.purpose.isNotEmpty
+                                                  ? chain.purpose
+                                                  : chain.name),
+                                          style: TextStyle(
+                                            color: isCompletedToday
+                                                ? Colors.white.withOpacity(
+                                                    0.5) // Yapıldıysa sönük
+                                                : Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            decoration: isCompletedToday
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                            decorationColor: Colors.white54,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white,
-                                  ),
-                                  child: const Icon(Icons.person,
-                                      color: Colors.grey),
-                                ),
-                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "User $index",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                              ),
-                            )
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      // ❗ const kaldırıldı
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StatisticsScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
                           ),
-                        ],
+                        ),
                       ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                      const SizedBox(height: 30),
+
+                      // 3. ÜYELER
+                      const Text("Team Status",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: chain.members.length,
+                          itemBuilder: (context, index) {
+                            final memberId = chain.members[index];
+                            final isMemCompleted =
+                                chain.membersCompletedToday.contains(memberId);
+                            return _buildMemberAvatar(memberId, isMemCompleted);
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // 4. DESCRIPTION
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    ChainDetailScreen(chain: chain))),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Zincir Hedefi",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("About this Chain",
+                                      style: TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
+                                  Icon(Icons.arrow_forward_ios,
+                                      color: Colors.white.withOpacity(0.3),
+                                      size: 14),
+                                ],
                               ),
-                              Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              )
+                              const SizedBox(height: 8),
+                              Text(
+                                chain.description.isNotEmpty
+                                    ? chain.description
+                                    : "No description provided.",
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    height: 1.4),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
-                          SizedBox(height: 10),
-                          Text(
-                            "Bu zincirin amacı her gün düzenli kitap okumaktır. Buraya tıklayarak zincirinin detaylı istatistiklerini, kimin ne zaman zinciri kırdığını ve performans grafiklerini görebilirsin.",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              height: 1.5,
-                            ),
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
 
-      // BottomAppBar
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          child: BottomAppBar(
-            color: Colors.black.withOpacity(0.9),
-            shape: const CircularNotchedRectangle(),
-            notchMargin: 10.0,
-            height: 70,
-            padding: EdgeInsets.zero,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.home_rounded, size: 30),
-                        color: Colors.white.withOpacity(0.9),
-                        onPressed: () {
-                          // ❗ const kaldırıldı
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CreateChainScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                      const SizedBox(height: 50),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.person, size: 30),
-                        color: Colors.white.withOpacity(0.9),
-                        onPressed: () {
-                          // ❗ const kaldırıldı
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => JoinChainScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -3,7 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chainapp/firebase_options.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/chain_hub_screen.dart';
+import 'services/notification_service.dart'; // Ekle
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Bildirim Servisini Başlat
+  await NotificationService().init();
 
   runApp(const MyApp());
 }
@@ -21,8 +25,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Chain App',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
       home: const AuthGate(),
     );
   }
@@ -36,16 +44,20 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Yükleniyor...
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            backgroundColor: Color(0xFF0A0E25),
+            body: Center(child: CircularProgressIndicator(color: Colors.white)),
           );
         }
 
+        // Giriş yapılmışsa Ana Ekrana (Chain Hub)
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return const ChainHubScreen();
         }
 
+        // Giriş yapılmamışsa Login Ekranına
         return const LoginScreen();
       },
     );

@@ -1,200 +1,150 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/user_model.dart';
 import '../models/chain_model.dart';
 import '../models/chain_log_model.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  Future<void> saveDeviceToken(String userId) async {
-    try {
-      // 1. İzin İste (iOS için zorunlu, Android için iyi pratik)
-      FirebaseMessaging messaging = FirebaseMessaging.instance;
-      NotificationSettings settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        // 2. Token'ı Al (Telefonun dijital adresi)
-        String? token = await messaging.getToken();
-
-        if (token != null) {
-          // 3. Veritabanına Kaydet
-          await _db.collection('users').doc(userId).update({
-            'fcmToken': token, // UserModel'deki alanla aynı isimde olmalı
-          });
-          print("Bildirim Tokenı Kaydedildi: $token");
-        }
-      } else {
-        print('Kullanıcı bildirim izni vermedi.');
-      }
-    } catch (e) {
-      print("Token hatası: $e");
-    }
-  }
-  // ------------------------------------
-  // I. KULLANICI İŞLEMLERİ (UserModel)
-  // ------------------------------------
-
-  // 1. Yeni kullanıcıyı Firestore'a ekler
+  // --- 1. KULLANICI OLUŞTURMA ---
   Future<void> createUser(UserModel user) async {
-    try {
-      await _db.collection('users').doc(user.uid).set(user.toMap());
-    } catch (e) {
-      print('Kullanıcı oluşturma hatası: $e');
-    }
+    await _db.collection('users').doc(user.uid).set(user.toMap());
   }
 
-  // 2. Kullanıcı bilgisini gerçek zamanlı okur
+  // --- 2. KULLANICI TAKİBİ (STREAM) ---
   Stream<UserModel> streamUser(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((snapshot) {
-      if (!snapshot.exists || snapshot.data() == null) {
-        return const UserModel(
-            uid: 'HATA', email: '', username: 'Hata', groupIds: []);
-      }
-      return UserModel.fromMap(snapshot.data()!, snapshot.id);
+      if (!snapshot.exists)
+        return UserModel(uid: 'error', email: '', name: 'Error');
+      return UserModel.fromFirestore(snapshot);
     });
   }
 
-  // ------------------------------------
-  // II. ZİNCİR/GRUP İŞLEMLERİ (ChainModel)
-  // ------------------------------------
-
-  // 3. Yeni bir grup/zincir oluşturur
-  Future<void> createChain(ChainModel chain) async {
-    try {
-      await _db.collection('chains').doc(chain.id).set(chain.toMap());
-    } catch (e) {
-      print('Zincir oluşturma hatası: $e');
-    }
-  }
-
-  // 4. Grup/Zincir bilgisini gerçek zamanlı okur
-  Stream<ChainModel> streamChain(String chainId) {
-    return _db.collection('chains').doc(chainId).snapshots().map((snapshot) {
-      return ChainModel.fromMap(snapshot.id, snapshot.data()!);
-    });
-  }
-
-  // 📌 EKLENDİ (home_screen.dart'ın talep ettiği metot)
-  // Kullanıcının üye olduğu tüm zincirleri gerçek zamanlı okur.
-  Stream<List<ChainModel>> streamUserChains(String userId) {
-    return _db
-        .collection('chains')
-        .where('members', arrayContains: userId)
-        .snapshots()
-        .map((snapshot) {
-      // Gelen belgeler listesini (QuerySnapshot), ChainModel listesine çevirir.
-      return snapshot.docs.map((doc) {
-        return ChainModel.fromMap(doc.id, doc.data());
-      }).toList();
-    });
-  }
-
-  // ------------------------------------
-  // III. CHECK-IN İŞLEMLERİ (ChainLog)
-  // ------------------------------------
-
-  // 5. Günlük Check-in işlemini yapar ve Log kaydı oluşturur
-  Future<void> performCheckIn(
-      String chainId, String userId, ChainLog logData) async {
-    try {
-      // a) ChainLog koleksiyonuna giriş kaydını ekle
-      await _db
-          .collection('chains')
-          .doc(chainId)
-          .collection('logs')
-          .add(logData.toMap());
-
-      // b) ChainModel'deki ilgili alanları güncelle
-      await _db.collection('chains').doc(chainId).update({
-        'membersCompletedToday': FieldValue.arrayUnion([userId]),
-      });
-    } catch (e) {
-      print('Check-in işlemi hatası: $e');
-    }
-  }
-
-  // ------------------------------------
-  // IV. EK BİR FONKSİYON: Gruba Katılma
-  // ------------------------------------
-
-  // 6. Bir kullanıcıyı gruba ekler (Gruba Katılma İşlemi)
-  Future<void> joinChain(String chainId, String userId) async {
-    // 1. Kullanıcının userModel'ini güncelle
-    await _db.collection('users').doc(userId).update({
-      'groupIds': FieldValue.arrayUnion([chainId]),
-    });
-
-    // 2. Grubun chainModel'ini güncelle
-    await _db.collection('chains').doc(chainId).update({
-      'members': FieldValue.arrayUnion([userId]),
-    });
-  }
-
-  // GÜNLÜK ZİNCİR KONTROLÜ (Telefon Saatiyle)
+  // --- 3. ZİNCİR KONTROL ROBOTU (AÇILIŞTA ÇALIŞIR) ---
   Future<void> checkChainsOnAppStart(String userId) async {
     try {
       final snapshot = await _db
           .collection('chains')
           .where('members', arrayContains: userId)
           .get();
-
       final now = DateTime.now();
-      final String todayStr =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-      final yesterday = now.subtract(const Duration(days: 1));
-      final String yesterdayStr =
-          "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
 
       for (var doc in snapshot.docs) {
+        final chainId = doc.id;
         final data = doc.data();
         final String status = data['status'] ?? 'active';
-        final String? lastCheckIn = data['lastCheckInDate'];
 
+        // Kırıksa atla
         if (status == 'broken') continue;
 
-        if (lastCheckIn == null) continue;
+        // Son logu bul
+        final logsSnapshot = await _db
+            .collection('chains')
+            .doc(chainId)
+            .collection('logs')
+            .where('userId', isEqualTo: userId)
+            .orderBy('logDate', descending: true)
+            .limit(1)
+            .get();
 
-        if (lastCheckIn == todayStr) {
-          if (status == 'warning') {
-            await doc.reference.update({'status': 'active'});
-          }
-          continue;
+        DateTime? lastCheckIn;
+        if (logsSnapshot.docs.isNotEmpty) {
+          lastCheckIn =
+              (logsSnapshot.docs.first['logDate'] as Timestamp).toDate();
         }
 
-        if (lastCheckIn == yesterdayStr) {
-          if (now.hour >= 12) {
-            if (status != 'broken') {
-              await doc.reference.update({
-                'status': 'broken',
-                'streakCount': 0,
-                'brokenAt': FieldValue.serverTimestamp(),
-              });
-              print("${doc.id} zinciri kırıldı (Öğlen 12'yi geçti).");
-            }
-          } else {
-            if (status != 'warning') {
-              await doc.reference.update({'status': 'warning'});
-              print("${doc.id} zinciri uyarı moduna geçti.");
-            }
-          }
-        } else {
-          if (status != 'broken') {
-            await doc.reference.update({
-              'status': 'broken',
-              'streakCount': 0,
-              'brokenAt': FieldValue.serverTimestamp(),
-            });
-          }
+        if (lastCheckIn == null) continue; // Yeni zincir, henüz işlem yok
+
+        // Gün farkı hesapla
+        final difference = now.difference(lastCheckIn).inDays;
+
+        if (difference == 0) continue; // Bugün yapılmış
+
+        // CEZA MANTIĞI
+        if (difference == 2) {
+          // 2 gün girmemiş -> -30 XP Ceza
+          await _applyXPChange(userId, -30);
+          print("⚠️ Uyarı: $chainId için 2 gün atlandı! -30 XP");
+        } else if (difference >= 3) {
+          // 3+ gün -> ZİNCİR KIRILDI
+          await _db.collection('chains').doc(chainId).update({
+            'status': 'broken',
+            'brokenAt': FieldValue.serverTimestamp(),
+          });
+          print("☠️ Zincir Kırıldı: $chainId");
         }
       }
     } catch (e) {
-      print("Günlük kontrol hatası: $e");
+      print("Zincir kontrol hatası: $e");
     }
+  }
+
+  // --- 4. CHECK-IN YAPMA ---
+  Future<void> performCheckIn(
+      String chainId, String userId, ChainLog logData) async {
+    // Log ekle
+    await _db
+        .collection('chains')
+        .doc(chainId)
+        .collection('logs')
+        .add(logData.toMap());
+
+    // Zinciri güncelle (Bugün yapıldı olarak işaretle ve streak artır)
+    await _db.collection('chains').doc(chainId).update({
+      'membersCompletedToday': FieldValue.arrayUnion([userId]),
+      'streakCount': FieldValue.increment(1),
+    });
+
+    // Kullanıcıya XP ver (+10)
+    await _applyXPChange(userId, 10);
+  }
+
+  // --- YARDIMCI: XP EKLE/ÇIKAR VE ROZET GÜNCELLE ---
+  Future<void> _applyXPChange(String userId, int amount) async {
+    final userRef = _db.collection('users').doc(userId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      if (!snapshot.exists) return;
+
+      int currentXp = snapshot.data()?['xp'] ?? 0;
+      int newXp = currentXp + amount;
+      if (newXp < 0) newXp = 0; // Eksiye düşmesin
+
+      // Rozet Hesapla
+      String newBadge = "Rookie";
+      if (newXp >= 10000)
+        newBadge = "Legend";
+      else if (newXp >= 5000)
+        newBadge = "Master";
+      else if (newXp >= 2500)
+        newBadge = "Elite";
+      else if (newXp >= 1000)
+        newBadge = "Warrior";
+      else if (newXp >= 500) newBadge = "Scout";
+
+      transaction.update(userRef, {
+        'xp': newXp,
+        'badge': newBadge,
+      });
+    });
+  }
+
+  // --- DİĞER METOTLAR ---
+  Stream<List<ChainModel>> streamUserChains(String userId) {
+    return _db
+        .collection('chains')
+        .where('members', arrayContains: userId)
+        .snapshots()
+        .map((s) =>
+            s.docs.map((d) => ChainModel.fromMap(d.id, d.data())).toList());
+  }
+
+  // --- ZİNCİRDEN ÜYE ATMA (KICK MEMBER) ---
+  Future<void> removeMember(String chainId, String memberId) async {
+    // Zincirin 'members' listesinden bu ID'yi sil
+    await _db.collection('chains').doc(chainId).update({
+      'members': FieldValue.arrayRemove([memberId])
+    });
   }
 }

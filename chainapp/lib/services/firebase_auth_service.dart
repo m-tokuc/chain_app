@@ -1,71 +1,120 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // EMAIL REGISTER
+  // --- REGISTER (EMAIL) ---
   Future<User?> register(String email, String password) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
+      UserCredential credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // Kullanıcı oluştuysa Firestore'a kaydet
+      if (credential.user != null) {
+        await _saveUserToFirestore(credential.user!);
+      }
+
       return credential.user;
     } catch (e) {
-      print("REGISTER ERROR: $e");
-      return null;
+      print("Register Service Error: $e");
+      rethrow; // Hatayı UI'ya fırlat ki orada yakalayalım
     }
   }
 
-  // EMAIL LOGIN
+  // --- LOGIN (EMAIL) ---
   Future<User?> login(String email, String password) async {
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
+      UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       return credential.user;
     } catch (e) {
-      print("LOGIN ERROR: $e");
-      return null;
+      print("Login Service Error: $e");
+      rethrow;
     }
   }
 
-  // LOGOUT
-  Future<void> logout() async {
-    await _auth.signOut();
-  }
-
-  // RETURN CURRENT USER EMAIL
-  String? getCurrentUserEmail() {
-    return _auth.currentUser?.email;
-  }
-
-  // RETURN CURRENT USER ID
-  String? currentUserId() {
-    return _auth.currentUser?.uid;
-  }
-
-  // GOOGLE SIGN-IN
+  // --- GOOGLE SIGN IN (DÜZELTİLDİ) ---
   Future<User?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return null;
+      // 🔥 KRİTİK DÜZELTME:
+      // Önceki yarım kalan veya askıda kalan oturumları zorla kapatır.
+      // Bu sayede her seferinde hesap seçme ekranı temiz bir şekilde açılır.
+      await _googleSignIn.signOut();
 
+      // 1. Google ile oturum açma penceresini başlat
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // Kullanıcı pencereyi çarpıdan kapattıysa null döner, işlem biter.
+        return null;
+      }
+
+      // 2. Kimlik doğrulama detaylarını al
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
-      final credential = GoogleAuthProvider.credential(
+      // 3. Firebase için yeni bir kimlik oluştur
+      final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _auth.signInWithCredential(credential);
+      // 4. Firebase'e giriş yap
+      UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
+
+      // 5. Firestore'a kaydet
+      if (userCredential.user != null) {
+        await _saveUserToFirestore(userCredential.user!);
+      }
+
       return userCredential.user;
     } catch (e) {
-      print("GOOGLE SIGN-IN ERROR: $e");
+      print("Google Sign-In Service Error: $e");
       return null;
     }
+  }
+
+  // --- YARDIMCI: KULLANICIYI FIRESTORE'A KAYDET ---
+  Future<void> _saveUserToFirestore(User user) async {
+    try {
+      final userRef = _firestore.collection('users').doc(user.uid);
+
+      // Eğer kullanıcı zaten varsa üzerine yazma (merge: true)
+      await userRef.set({
+        'uid': user.uid,
+        'email': user.email,
+        'name': user.displayName ??
+            user.email!.split('@')[0], // İsim yoksa mailin başını al
+        'avatarSeed': user.uid, // Avatar için seed
+        'xp': 0,
+        'badge': 'Rookie',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Firestore Save Error: $e");
+      // Firestore hatası olsa bile giriş yapılmış sayılsın diye hata fırlatmıyoruz
+    }
+  }
+
+  // --- LOGOUT ---
+  Future<void> logout() async {
+    // Hem Google'dan hem Firebase'den çıkış yap
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
+
+  // --- CURRENT USER ID ---
+  String? currentUserId() {
+    return _auth.currentUser?.uid;
   }
 }
