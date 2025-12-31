@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chainapp/firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/chain_hub_screen.dart';
-import 'services/notification_service.dart'; // Ekle
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,9 +12,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Bildirim Servisini Başlat
-  await NotificationService().init();
 
   runApp(const MyApp());
 }
@@ -44,7 +41,6 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Yükleniyor...
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Color(0xFF0A0E25),
@@ -52,8 +48,11 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // Giriş yapılmışsa Ana Ekrana (Chain Hub)
-        if (snapshot.hasData) {
+        // Giriş yapılmışsa
+        if (snapshot.hasData && snapshot.data != null) {
+          // 🔥 KRİTİK ADIM: Kullanıcı giriş yaptığı an bildirim servisini başlat
+          NotificationService().init(snapshot.data!.uid);
+
           return const ChainHubScreen();
         }
 

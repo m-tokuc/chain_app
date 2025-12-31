@@ -147,4 +147,39 @@ class FirestoreService {
       'members': FieldValue.arrayRemove([memberId])
     });
   }
+
+  // --- 5. DÜRTME (NUDGE) SİSTEMİ ---
+  Future<void> sendNudge(String senderId, String receiverId, String chainId,
+      String chainName) async {
+    try {
+      // 1. Önce "Bugün zaten dürttüm mü?" kontrolü yapalım (Spam engelleme)
+      final today = DateTime.now().toString().split(' ')[0];
+      final nudgeId = "${senderId}_${receiverId}_$chainId\_$today";
+
+      final docRef = _db.collection('notifications').doc(nudgeId);
+      final docSnap = await docRef.get();
+
+      if (docSnap.exists) {
+        // Zaten dürtmüş, bir şey yapma (veya hata fırlat)
+        throw Exception("Bu arkadaşını bugün zaten dürttün! ⏳");
+      }
+
+      // 2. Bildirimi Kaydet
+      await docRef.set({
+        'type': 'nudge',
+        'senderId': senderId,
+        'receiverId': receiverId,
+        'chainId': chainId,
+        'title': "Hadi ama! ⏳",
+        'body': "Zinciri kırma! $chainName için bekleniyorsun.",
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
+
+      print("Dürtme gönderildi! 🔔");
+    } catch (e) {
+      print("Dürtme hatası: $e");
+      rethrow; // Hatayı ekrana basmak için fırlatıyoruz
+    }
+  }
 }
