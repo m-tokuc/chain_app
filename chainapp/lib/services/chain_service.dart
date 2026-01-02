@@ -53,7 +53,7 @@ class ChainService {
     });
   }
 
-  // 3. KOD İLE KATILMA (Bu eksikti, eklendi)
+  // 3. KOD İLE KATILMA
   Future<bool> joinChainWithCode(String code, String userId) async {
     try {
       final querySnapshot = await _db
@@ -78,6 +78,37 @@ class ChainService {
     } catch (e) {
       print("Error joining chain: $e");
       return false;
+    }
+  }
+
+  // 🔥 4. OTOMATİK ROZET SİSTEMİ (Yeni Eklenen Kısım)
+  // Bu fonksiyonu her zincir onaylama işleminden sonra çağıracağız.
+  Future<void> updateAutoBadges(String userId, int currentStreak) async {
+    try {
+      final userDoc = _db.collection('users').doc(userId);
+      List<String> earnedBadges = [];
+
+      // Seri (Streak) sayısına göre rozetleri listeye ekle
+      if (currentStreak >= 1) earnedBadges.add("İlk Adım 👟");
+      if (currentStreak >= 5) earnedBadges.add("İstikrarlı ⚡");
+      if (currentStreak >= 10) earnedBadges.add("Durdurulamaz 🔥");
+      if (currentStreak >= 30) earnedBadges.add("Efsane 🏆");
+
+      // Blue Zone Kriteri: Eğer seri 5+ ise ve saat sabah 05:00-10:00 arasındaysa
+      int hour = DateTime.now().hour;
+      if (currentStreak >= 5 && (hour >= 5 && hour <= 10)) {
+        earnedBadges.add("Uzun Ömür Ustası 🌿");
+      }
+
+      if (earnedBadges.isNotEmpty) {
+        await userDoc.update({
+          // arrayUnion: Listede olmayanları ekler, olanları tekrar eklemez.
+          'badges': FieldValue.arrayUnion(earnedBadges)
+        });
+        print("Rozetler güncellendi: $earnedBadges");
+      }
+    } catch (e) {
+      print("Rozet güncellenirken hata oluştu: $e");
     }
   }
 }

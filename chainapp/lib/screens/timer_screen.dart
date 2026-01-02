@@ -1,223 +1,174 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:chainapp/models/chain_model.dart';
-import 'package:chainapp/models/chain_log_model.dart';
-import 'package:chainapp/services/firestore_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'profile_screen.dart'; // Profil için
+import 'package:audioplayers/audioplayers.dart'; // Ses çalmak için gerekli paket
 
-class TimerScreen extends StatefulWidget {
-  final ChainModel chain;
-  const TimerScreen({super.key, required this.chain});
+class ChainTimerScreen extends StatefulWidget {
+  const ChainTimerScreen({super.key});
 
   @override
-  State<TimerScreen> createState() => _TimerScreenState();
+  State<ChainTimerScreen> createState() => _ChainTimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> {
-  late int remainingSeconds;
-  late int totalSeconds;
+class _ChainTimerScreenState extends State<ChainTimerScreen> {
+  int selectedMinutes = 25; // Kullanıcının seçtiği başlangıç süresi
+  int remainingSeconds = 25 * 60;
   Timer? _timer;
   bool isRunning = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Chain'den gelen süreyi al, yoksa 30 dk varsayılan
-    totalSeconds = (widget.chain.duration ?? 30) * 60;
-    remainingSeconds = totalSeconds;
-  }
+  // 🔥 SES ÇALAR NESNESİ
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  void startTimer() {
-    if (_timer != null) return;
-    setState(() => isRunning = true);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (remainingSeconds > 0) {
-        setState(() => remainingSeconds--);
-      } else {
-        completeTimer();
-      }
-    });
-  }
-
-  void stopTimer() {
+  // 🔥 SÜRE BİTTİĞİNDE ÇALIŞAN FONKSİYON
+  void _onTimerFinished() async {
     _timer?.cancel();
-    _timer = null;
     setState(() => isRunning = false);
-  }
 
-  Future<void> completeTimer() async {
-    stopTimer();
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    // Eğer bugün yapılmadıysa otomatik check-in
-    if (userId != null &&
-        !widget.chain.membersCompletedToday.contains(userId)) {
-      final newLog = ChainLog(
-          userId: userId, logDate: DateTime.now(), note: "Timer Completed ⏱️");
-      await FirestoreService().performCheckIn(widget.chain.id, userId, newLog);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Timer finished! Task Completed! ✅"),
-          backgroundColor: Colors.green));
-      Navigator.pop(context); // Bitince Home'a dön
+    // 🔔 ALARM ÇALMA KODU (İstediğin yer tam burası)
+    try {
+      // AssetSource, pubspec.yaml'daki Assets/alarm.mp3 kaydıyla otomatik eşleşir
+      await _audioPlayer.play(AssetSource('alarm.mp3'));
+    } catch (e) {
+      print("Alarm çalarken hata oluştu: $e");
     }
-  }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  String get timeString {
-    int m = remainingSeconds ~/ 60;
-    int s = remainingSeconds % 60;
-    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
-  }
-
-  // --- TIMER EKRANININ ALT BARI ---
-  Widget _buildBottomBar(BuildContext context) {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 1. HOME: Buraya basınca Timer kapanır ve Home'a döner
-          IconButton(
+    // Kullanıcıya süre bittiğini gösteren pencere
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF142A52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title:
+            const Text("Süre Doldu! 🔔", style: TextStyle(color: Colors.white)),
+        content: const Text("Zamanlayıcı sona erdi.",
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
             onPressed: () {
+              _audioPlayer.stop(); // Alarmı durdurur
               Navigator.pop(context);
             },
-            icon:
-                const Icon(Icons.home_filled, color: Colors.white70, size: 30),
-          ),
-
-          // 2. TIMER: Aktif olduğu için renkli
-          GestureDetector(
-            onTap: () {}, // Zaten buradayız
-            child: Container(
-              width: 55,
-              height: 55,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F3D78),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white24),
-                boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFFA68FFF).withOpacity(0.5),
-                      blurRadius: 15)
-                ],
-              ),
-              child: const Icon(Icons.timer, color: Colors.white, size: 28),
-            ),
-          ),
-
-          // 3. PROFILE
-          IconButton(
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()));
-            },
-            icon: const Icon(Icons.person, color: Colors.white70, size: 30),
+            child: const Text("Alarmı Durdur",
+                style: TextStyle(color: Colors.cyanAccent)),
           ),
         ],
       ),
     );
   }
 
+  void _startTimer() {
+    if (isRunning) {
+      _timer?.cancel();
+    } else {
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          if (remainingSeconds > 0) {
+            remainingSeconds--;
+          } else {
+            _onTimerFinished();
+          }
+        });
+      });
+    }
+    setState(() => isRunning = !isRunning);
+  }
+
+  String _formatTime(int seconds) {
+    int m = seconds ~/ 60;
+    int s = seconds % 60;
+    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _audioPlayer.dispose(); // Sayfadan çıkınca belleği temizler
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // İlerleme oranı (Ters orantı: süre azaldıkça bar dolsun istiyorsan 1 - (...) yap)
-    // Yılanın dolması için:
-    double progress = 1.0 - (remainingSeconds / totalSeconds);
-
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E25),
-      bottomNavigationBar: _buildBottomBar(context), // 🔥 ALT BAR EKLENDİ
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-              decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [Color(0xFF0A0E25), Color(0xFF1F3D78)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter))),
-          SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(widget.chain.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text(widget.chain.purpose,
-                    style: TextStyle(
-                        color: Colors.white.withOpacity(0.7), fontSize: 16)),
-
-                const SizedBox(height: 60),
-
-                // --- 🐍 YILAN SAYAÇ ---
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 260,
-                      height: 260,
-                      child: CircularProgressIndicator(
-                        value: progress, // Yılan buradan ilerler
-                        strokeWidth: 12,
-                        backgroundColor: Colors.white10,
-                        color: const Color(0xFFA68FFF),
-                        strokeCap: StrokeCap.round,
-                      ),
-                    ),
-                    Text(timeString,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 52,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-
-                const SizedBox(height: 60),
-
-                GestureDetector(
-                  onTap: isRunning ? stopTimer : startTimer,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 18),
-                    decoration: BoxDecoration(
-                      color: isRunning
-                          ? Colors.redAccent.withOpacity(0.2)
-                          : Colors.greenAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color: isRunning
-                              ? Colors.redAccent
-                              : Colors.greenAccent),
-                    ),
-                    child: Text(
-                      isRunning ? "PAUSE" : "START",
-                      style: TextStyle(
-                          color:
-                              isRunning ? Colors.redAccent : Colors.greenAccent,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
-                    ),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Sadece duruyorsa süre değiştirilebilir
+            if (!isRunning)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline,
+                        color: Colors.cyanAccent, size: 35),
+                    onPressed: () => setState(() {
+                      if (selectedMinutes > 1) {
+                        selectedMinutes--;
+                        remainingSeconds = selectedMinutes * 60;
+                      }
+                    }),
                   ),
-                )
-              ],
+                  const SizedBox(width: 10),
+                  Text("$selectedMinutes Dakika",
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 18)),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline,
+                        color: Colors.cyanAccent, size: 35),
+                    onPressed: () => setState(() {
+                      selectedMinutes++;
+                      remainingSeconds = selectedMinutes * 60;
+                    }),
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 40),
+
+            // Zaman Göstergesi
+            Text(
+              _formatTime(remainingSeconds),
+              style: const TextStyle(
+                  fontSize: 80,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 60),
+
+            // Başlat/Durdur Butonu
+            GestureDetector(
+              onTap: _startTimer,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  gradient: const LinearGradient(
+                      colors: [Colors.cyanAccent, Colors.blueAccent]),
+                ),
+                child: Text(
+                  isRunning ? "DURAKLAT" : "BAŞLAT",
+                  style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

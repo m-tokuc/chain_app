@@ -326,8 +326,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Icon(Icons.home_filled, color: Colors.white70, size: 32),
           ),
           GestureDetector(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => TimerScreen(chain: chain))),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChainTimerScreen(),
+                ),
+              );
+            }, // Fonksiyon burada bitmeli
             child: Container(
               width: 55,
               height: 55,
@@ -337,16 +343,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 border: Border.all(color: Colors.white24),
                 boxShadow: [
                   BoxShadow(
-                      color: const Color(0xFFA68FFF).withOpacity(0.3),
-                      blurRadius: 10)
+                    color: const Color(0xFFA68FFF).withOpacity(0.3),
+                    blurRadius: 10,
+                  ),
                 ],
               ),
               child: const Icon(Icons.timer, color: Colors.white, size: 28),
             ),
-          ),
+          ), // GestureDetector burada bitmeli
           IconButton(
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
             icon: const Icon(Icons.person, color: Colors.white70, size: 32),
           ),
         ],
