@@ -210,8 +210,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🔥 AVATAR GÖRÜNÜMÜ (Yeşil/Kırmızı Çerçeve)
-  Widget _buildMemberAvatar(String memberId, bool isCompleted) {
+  // 🔥 GÜNCELLENMİŞ AVATAR VE DÜRTME BUTONU
+  Widget _buildMemberAvatar(
+      String memberId, bool isCompleted, String chainId, String chainName) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    // Kendimizi dürtmeyelim :)
+    final isMe = memberId == currentUserId;
+
     return FutureBuilder<DocumentSnapshot>(
       future:
           FirebaseFirestore.instance.collection('users').doc(memberId).get(),
@@ -219,34 +224,83 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!snapshot.hasData) return const SizedBox();
         final data = snapshot.data!.data() as Map<String, dynamic>?;
         final avatarSeed = data?['avatarSeed'] ?? 'user';
+        final userName = data?['name'] ?? 'User';
+
         return Padding(
           padding: const EdgeInsets.only(right: 12.0),
           child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      // Yapıldıysa YEŞİL, Yapılmadıysa KIRMIZIMSI
-                      color: isCompleted
-                          ? Colors.greenAccent
-                          : Colors.redAccent.withOpacity(0.6),
-                      width: 2.5),
-                  boxShadow: isCompleted
-                      ? [
-                          BoxShadow(
-                              color: Colors.green.withOpacity(0.3),
-                              blurRadius: 8)
-                        ]
-                      : [],
-                ),
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.black26,
-                  backgroundImage: NetworkImage(
-                      "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
-                ),
+              Stack(
+                children: [
+                  // 1. AVATAR (Kendisi)
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          // Yapıldıysa YEŞİL, Yapılmadıysa KIRMIZIMSI
+                          color: isCompleted
+                              ? Colors.greenAccent
+                              : Colors.redAccent.withOpacity(0.6),
+                          width: 2.5),
+                      boxShadow: isCompleted
+                          ? [
+                              BoxShadow(
+                                  color: Colors.green.withOpacity(0.3),
+                                  blurRadius: 8)
+                            ]
+                          : [],
+                    ),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.black26,
+                      backgroundImage: NetworkImage(
+                          "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
+                    ),
+                  ),
+
+                  // 2. DÜRTME BUTONU (Sadece yapılmadıysa ve başkasıysa göster)
+                  if (!isCompleted && !isMe)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () async {
+                          try {
+                            await FirestoreService().sendNudge(
+                                currentUserId!, memberId, chainId, chainName);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("$userName dürtüldü! 👋"),
+                                backgroundColor: Colors.orangeAccent,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    e.toString().replaceAll("Exception: ", "")),
+                                backgroundColor: Colors.grey,
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(blurRadius: 4, color: Colors.black26)
+                              ]),
+                          child: const Icon(Icons.waving_hand,
+                              size: 14, color: Colors.orange),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -272,8 +326,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const Icon(Icons.home_filled, color: Colors.white70, size: 32),
           ),
           GestureDetector(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => TimerScreen(chain: chain))),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChainTimerScreen(),
+                ),
+              );
+            }, // Fonksiyon burada bitmeli
             child: Container(
               width: 55,
               height: 55,
@@ -283,16 +343,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 border: Border.all(color: Colors.white24),
                 boxShadow: [
                   BoxShadow(
-                      color: const Color(0xFFA68FFF).withOpacity(0.3),
-                      blurRadius: 10)
+                    color: const Color(0xFFA68FFF).withOpacity(0.3),
+                    blurRadius: 10,
+                  ),
                 ],
               ),
               child: const Icon(Icons.timer, color: Colors.white, size: 28),
             ),
-          ),
+          ), // GestureDetector burada bitmeli
           IconButton(
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
             icon: const Icon(Icons.person, color: Colors.white70, size: 32),
           ),
         ],
@@ -532,7 +595,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             final memberId = chain.members[index];
                             final isMemCompleted =
                                 chain.membersCompletedToday.contains(memberId);
-                            return _buildMemberAvatar(memberId, isMemCompleted);
+                            return _buildMemberAvatar(
+                                memberId, isMemCompleted, chain.id, chain.name);
                           },
                         ),
                       ),

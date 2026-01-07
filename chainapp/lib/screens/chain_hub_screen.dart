@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 🔥 EKLENDİ
 import '../services/chain_service.dart';
 import '../services/firebase_auth_service.dart';
-import '../services/firestore_service.dart'; // 🔥 Eklendi
+import '../services/firestore_service.dart'; // 🔥 EKLENDİ
 import 'create_chain_screen.dart';
 import 'join_chain_screen.dart';
 import 'home_screen.dart';
@@ -24,10 +25,47 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
     super.initState();
     userId = authService.currentUserId();
 
-    // 🔥 UYGULAMA AÇILINCA ZİNCİR KONTROLÜ YAP (XP CEZA SİSTEMİ)
+    //  UYGULAMA AÇILINCA ZİNCİR KONTROLÜ YAP (XP CEZA SİSTEMİ)
     if (userId != null) {
       FirestoreService().checkChainsOnAppStart(userId!);
     }
+  }
+
+  // 🔥 ROZET TASARIMI WIDGET'I (Sadece görsellik için yardımcı fonksiyon)
+  Widget _buildBadgeList(List<dynamic> badges) {
+    if (badges.isEmpty) return const SizedBox();
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      alignment: WrapAlignment.center,
+      children: badges.map((badge) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient:
+                const LinearGradient(colors: [Colors.blueAccent, Colors.cyan]),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.blue.withOpacity(0.5), blurRadius: 5)
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                badge.toString(),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 
   @override
@@ -45,9 +83,9 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
         centerTitle: true,
       ),
       body: Stack(
-        fit: StackFit.expand, // 🔥 Ekranı tam doldurma garantisi
+        fit: StackFit.expand,
         children: [
-          // 🌌 BACKGROUND
+          //  BACKGROUND
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -70,8 +108,43 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // ===============================
-                // 🔗 MY CHAINS (VERTICAL LIST)
+                // 🔥 EKLEDİĞİMİZ ROZET BÖLÜMÜ (Firestore'dan anlık çeker)
+                if (userId != null)
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox();
+
+                      var userData =
+                          snapshot.data!.data() as Map<String, dynamic>?;
+                      List<dynamic> badges = userData?['badges'] ?? [];
+
+                      if (badges.isEmpty) return const SizedBox();
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Column(
+                          children: [
+                            Text(
+                              "Achievements",
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildBadgeList(badges),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                //  MY CHAINS (VERTICAL LIST)
                 // ===============================
                 Expanded(
                   child: userId == null
@@ -253,7 +326,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                         ),
                 ),
 
-                // ===============================
                 // ➕ BUTONLAR
                 // ===============================
                 Padding(

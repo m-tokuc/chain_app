@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  audioplayers: ^5.2.1
   # Firebase Core & Plugins
   firebase_core: ^2.24.2
   firebase_auth: ^4.16.0
@@ -37,10 +37,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/images/hsl.login/hsl.jpg
     - assets/images/panda/
-
+    - assets/alarm.mp3  # Baş harfinin büyük olduğuna dikkat et!
 # 🔥 DÜZELTME: TÜM OVERRIDE'LAR TEK BİR YERDE TOPLANDI
 dependency_overrides:
   flutter_local_notifications: ^17.2.2
