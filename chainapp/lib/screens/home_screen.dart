@@ -36,90 +36,77 @@ class _HomeScreenState extends State<HomeScreen> {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return;
 
-    // 1. Durum: Zincir Kırık -> Tamir Et
+    // --- DURUM 1: ZİNCİR KIRIKSA (TAMİR ET) ---
     if (chain.status == 'broken') {
       try {
-        await FirebaseFirestore.instance
-            .collection('chains')
-            .doc(chain.id)
-            .update({
-          'status': 'active',
-          'streakCount': 0,
-        });
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .update({'xp': FieldValue.increment(-50)});
+        final batch = FirebaseFirestore.instance.batch();
+
+        // A. Zinciri Aktif Yap ve Bugünü Temizle
+        DocumentReference chainRef =
+            FirebaseFirestore.instance.collection('chains').doc(chain.id);
+        batch.set(
+            chainRef,
+            {
+              'status': 'active',
+              'streakCount': 0,
+              'membersCompletedToday':
+                  [], // Tamir edildiğinde listeyi boşaltıyoruz
+            },
+            SetOptions(merge: true));
+
+        // B. Kullanıcıdan XP Düş (-50)
+        // .set(merge: true) kullanıyoruz ki döküman yoksa hata vermesin, oluştursun
+        DocumentReference userRef =
+            FirebaseFirestore.instance.collection('users').doc(userId);
+        batch.set(
+            userRef,
+            {
+              'xp': FieldValue.increment(-50),
+            },
+            SetOptions(merge: true));
+
+        await batch.commit(); // İki işlemi aynı anda onayla
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Chain Repaired! 50 XP used. 🛠️")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Chain Repaired! 50 XP used. 🛠️"),
+            backgroundColor: Colors.blue));
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Error repairing chain: $e"),
-            backgroundColor: Colors.red));
+            content: Text("Repair Error: $e"), backgroundColor: Colors.red));
       }
-      return;
+      return; // Tamir bittikten sonra fonksiyonun geri kalanını (check-in) çalıştırma
     }
 
-    // 2. Durum: 🔥 ONAY KUTUSU (DIALOG)
+    // --- DURUM 2: ZİNCİR AKTİFSE (NORMAL CHECK-IN) ---
     bool? confirm = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // Dışarı tıklayınca kapanmasın
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1F3D78),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Complete Daily Goal?",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: const Text(
-            "Are you sure you want to check in? This cannot be undone for today.",
+        title: const Text("Daily Goal?", style: TextStyle(color: Colors.white)),
+        content: const Text("Mark today as completed?",
             style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false), // İptal
-            child:
-                const Text("Cancel", style: TextStyle(color: Colors.white54)),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel")),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true), // 🔥 ONAYLA
-            child: const Text("Yes, I did it!",
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text("Confirm")),
         ],
       ),
     );
 
-    // Eğer "Yes" denmediyse dur.
-    if (confirm != true) return;
-
-    // 3. Durum: Normal Check-in (Veritabanı)
-    try {
-      final newLog = ChainLog(
-          userId: userId, logDate: DateTime.now(), note: "Manual Check-in");
-
-      await _firestoreService.performCheckIn(chain.id, userId, newLog);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Awesome! Streak continued! 🔥"),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-      );
+    if (confirm == true) {
+      try {
+        final newLog = ChainLog(
+            userId: userId, logDate: DateTime.now(), note: "Manual Check-in");
+        await _firestoreService.performCheckIn(chain.id, userId, newLog);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -465,9 +452,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       // 2. 🔥 AKSİYON BUTONU (GÜNCELLENMİŞ TASARIM)
                       GestureDetector(
                         // Yapıldıysa Tıklanmasın, Kırıksa Tamir, Değilse Check-in
-                        onTap: isCompletedToday
-                            ? null
-                            : () => _handleAction(chain),
+                        onTap: (isBroken || !isCompletedToday)
+                            ? () => _handleAction(chain)
+                            : null, // Sadece hem aktif hem de yapıldıysa kilitli kalır.
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: BackdropFilter(
