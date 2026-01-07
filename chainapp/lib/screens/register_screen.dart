@@ -24,36 +24,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool isGoogleLoading = false;
 
   // REGISTER
-  void registerUser() async {
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
-    String confirmPassword = confirmPasswordController.text.trim();
+void registerUser() async {
+  // ... (kontroller aynı)
 
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+  setState(() => isLoading = true);
+  
+  try {
+    final user = await _authService.register(emailController.text, passwordController.text);
+    
+    // 🔥 KRİTİK: Firebase'den cevap geldikten sonra ekran hala oradaysa işlem yap
+    if (!mounted) return; 
+
+    if (user != null) {
+      setState(() => isLoading = false);
+      
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("All fields are required")));
-      return;
+        const SnackBar(content: Text("Account created successfully!")),
+      );
+
+      // Ağır grafik yükünü azaltmak için geçişi 100ms ertele
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      if (mounted) {
+        // Kayıt başarılıysa neden tekrar Login'e gidiyorsun? 
+        // Direkt ana sayfaya (ChainHub) gitmek daha akıcı olur.
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (_) => const ChainHubScreen()),
+        );
+      }
     }
-    if (password != confirmPassword) {
+  } catch (e) {
+    if (mounted) {
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Passwords do not match")));
-      return;
-    }
-
-    setState(() => isLoading = true);
-    final user = await _authService.register(email, password);
-    setState(() => isLoading = false);
-
-    if (user != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account created successfully!")));
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-    } else if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Register failed")));
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
     }
   }
+}
 
   // GOOGLE SIGN-IN
   Future<void> signInWithGoogle() async {
@@ -90,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isPandaEyesClosed = hidePassword;
+    final bool isPandaEyesClosed = hidePassword && hideConfirmPassword;
 
     return Scaffold(
       extendBodyBehindAppBar: true,

@@ -9,24 +9,36 @@ class FirebaseAuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // --- REGISTER (EMAIL) ---
-  Future<User?> register(String email, String password) async {
-    try {
-      UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+// firebase_auth_service.dart içindeki register metodu
 
-      // Kullanıcı oluştuysa Firestore'a kaydet
-      if (credential.user != null) {
-        await _saveUserToFirestore(credential.user!);
-      }
-
-      return credential.user;
-    } catch (e) {
-      print("Register Service Error: $e");
-      rethrow; // Hatayı UI'ya fırlat ki orada yakalayalım
+Future<User?> register(String email, String password) async {
+  try {
+    UserCredential credential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    
+    if (credential.user != null) {
+      await _saveUserToFirestore(credential.user!);
     }
+    return credential.user;
+  } catch (e) {
+    // 🔥 KRİTİK DÜZELTME:
+    // Eğer Pigeon hatası alıyorsak ama Firebase arka planda kullanıcıyı oluşturduysa
+    if (e.toString().contains('PigeonUserDetails') || _auth.currentUser != null) {
+      print("İç hata oluştu ama kullanıcı oluşturuldu, devam ediliyor...");
+      
+      // Kullanıcı oluşmuşsa Firestore kaydını manuel tetikle
+      if (_auth.currentUser != null) {
+        await _saveUserToFirestore(_auth.currentUser!);
+      }
+      return _auth.currentUser;
+    }
+    
+    print("Register Service Error: $e");
+    rethrow;
   }
+}
 
   // --- LOGIN (EMAIL) ---
   Future<User?> login(String email, String password) async {

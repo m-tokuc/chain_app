@@ -1,3 +1,5 @@
+import 'package:chainapp/screens/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // 🔥 EKLENDİ
 import '../services/chain_service.dart';
@@ -15,6 +17,7 @@ class ChainHubScreen extends StatefulWidget {
   State<ChainHubScreen> createState() => _ChainHubScreenState();
 }
 
+
 class _ChainHubScreenState extends State<ChainHubScreen> {
   final chainService = ChainService();
   final authService = FirebaseAuthService();
@@ -29,6 +32,15 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
     if (userId != null) {
       FirestoreService().checkChainsOnAppStart(userId!);
     }
+  }
+
+    Future<void> _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   // 🔥 ROZET TASARIMI WIDGET'I (Sadece görsellik için yardımcı fonksiyon)
@@ -73,6 +85,10 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.logout, color: Colors.white),
+          onPressed: () => _logout(context),
+        ),
         automaticallyImplyLeading: false,
         title: const Text(
           "Your Chains",
