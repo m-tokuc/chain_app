@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Sadece sayı girişi için gerekli
+import 'package:flutter/services.dart'; // Required for numeric input
 import '../services/chain_service.dart';
 import '../services/firebase_auth_service.dart';
 import 'invite_code_screen.dart';
@@ -16,14 +16,13 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
   final _chainService = ChainService();
   final _authService = FirebaseAuthService();
 
-  // Kontrolcüler
+  // Controllers
   final nameController = TextEditingController();
   final purposeController = TextEditingController();
   final descriptionController = TextEditingController();
-  final durationController =
-      TextEditingController(); // ✅ YENİ: Süre Kontrolcüsü
+  final durationController = TextEditingController();
 
-  int? selectedDuration; // Seçilen süre (dk)
+  int? selectedDuration;
 
   String selectedPeriod = "daily";
   final List<String> selectedDays = [];
@@ -71,10 +70,9 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
       return;
     }
 
-    // ✅ SÜRE KONTROLÜ
+    // DURATION CONTROL
     int? finalDuration = selectedDuration;
 
-    // Eğer manuel giriş yapıldıysa onu önceliklendir
     if (durationController.text.isNotEmpty) {
       int? manualVal = int.tryParse(durationController.text);
       if (manualVal != null) {
@@ -89,13 +87,15 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
 
     setState(() => isLoading = true);
 
+    // 🔥 FIXED: Added the mandatory creatorId parameter
     final inviteCode = await _chainService.createChain(
       name: nameController.text.trim(),
       purpose: purposeController.text.trim(),
       description: descriptionController.text.trim(),
-      duration: finalDuration, // ✅ Servise gönderiyoruz
+      duration: finalDuration,
       period: selectedPeriod,
-      members: [userId],
+      members: [userId], // Adding creator as the first member
+      creatorId: userId, // 🔥 THIS FIXES THE ERROR AND SHOWS THE DELETE BUTTON
       days: selectedPeriod == "weekly" ? selectedDays : [],
     );
 
@@ -113,9 +113,7 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
     }
   }
 
-  // ✅ YENİ: Süre Seçim Butonları (Chips)
   Widget _buildDurationChip(int minutes) {
-    // Eğer manuel kutu boşsa ve bu süre seçiliyse aktif göster
     bool isSelected =
         (selectedDuration == minutes && durationController.text.isEmpty);
 
@@ -123,7 +121,7 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
       onTap: () {
         setState(() {
           selectedDuration = minutes;
-          durationController.clear(); // Manuel yazıyı temizle ki çakışmasın
+          durationController.clear();
         });
       },
       child: Container(
@@ -152,7 +150,7 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
     required IconData icon,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? formatters, // Sadece sayı girmek için ekledim
+    List<TextInputFormatter>? formatters,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -179,7 +177,6 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             ),
             onChanged: (val) {
-              // Manuel giriş yapılırsa seçili chip'i iptal et
               if (val.isNotEmpty && selectedDuration != null) {
                 setState(() => selectedDuration = null);
               }
@@ -231,7 +228,6 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // ARKA PLAN
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -245,8 +241,6 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
                 ),
               ),
             ),
-
-            // İÇERİK
             SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -296,14 +290,13 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
 
                     const SizedBox(height: 25),
 
-                    // ✅ SÜRE SEÇİMİ (YENİ)
+                    // DURATION
                     Text("Duration (Minutes)",
                         style: TextStyle(
                             color: Colors.white.withOpacity(0.8),
                             fontSize: 16,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 12),
-                    // Hazır Butonlar
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
@@ -312,15 +305,12 @@ class _CreateChainScreenState extends State<CreateChainScreen> {
                           .toList(),
                     ),
                     const SizedBox(height: 12),
-                    // Manuel Giriş
                     _buildGlassTextField(
                       controller: durationController,
                       hint: "Custom duration (Max 1440)",
                       icon: Icons.timer,
                       keyboardType: TextInputType.number,
-                      formatters: [
-                        FilteringTextInputFormatter.digitsOnly
-                      ], // Sadece sayı
+                      formatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
 
                     const SizedBox(height: 35),

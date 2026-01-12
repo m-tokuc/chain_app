@@ -5,7 +5,7 @@ class ChainService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final Uuid _uuid = const Uuid();
 
-  // 1. ZİNCİR OLUŞTURMA
+  // 1. CREATE CHAIN (Updated with creatorId)
   Future<String?> createChain({
     required String name,
     required String description,
@@ -14,6 +14,7 @@ class ChainService {
     required String period,
     required List<String> members,
     required List<String> days,
+    required String creatorId, // 🔥 FIXED: Now tracks who created the chain
   }) async {
     try {
       String chainId = _uuid.v4();
@@ -27,6 +28,8 @@ class ChainService {
         'duration': duration,
         'period': period,
         'members': members,
+        'creatorId':
+            creatorId, // 🔥 SAVED: Critical for the 'Delete' button to show up
         'membersCompletedToday': [],
         'days': days,
         'inviteCode': inviteCode,
@@ -42,7 +45,7 @@ class ChainService {
     }
   }
 
-  // 2. KULLANICININ ZİNCİRLERİNİ GETİRME
+  // 2. FETCH USER CHAINS
   Stream<List<Map<String, dynamic>>> getUserChains(String userId) {
     return _db
         .collection('chains')
@@ -53,7 +56,7 @@ class ChainService {
     });
   }
 
-  // 3. KOD İLE KATILMA
+  // 3. JOIN CHAIN VIA CODE
   Future<bool> joinChainWithCode(String code, String userId) async {
     try {
       final querySnapshot = await _db
@@ -68,7 +71,7 @@ class ChainService {
       final String chainId = doc.id;
       final List<dynamic> currentMembers = doc['members'];
 
-      if (currentMembers.contains(userId)) return false; // Zaten üye
+      if (currentMembers.contains(userId)) return false; // Already a member
 
       await _db.collection('chains').doc(chainId).update({
         'members': FieldValue.arrayUnion([userId])
@@ -81,34 +84,34 @@ class ChainService {
     }
   }
 
-  // 🔥 4. OTOMATİK ROZET SİSTEMİ (Yeni Eklenen Kısım)
-  // Bu fonksiyonu her zincir onaylama işleminden sonra çağıracağız.
+  // 🔥 4. AUTOMATIC BADGE SYSTEM (Revised to English)
+  // Call this after every successful check-in/completion
   Future<void> updateAutoBadges(String userId, int currentStreak) async {
     try {
       final userDoc = _db.collection('users').doc(userId);
       List<String> earnedBadges = [];
 
-      // Seri (Streak) sayısına göre rozetleri listeye ekle
-      if (currentStreak >= 1) earnedBadges.add("İlk Adım 👟");
-      if (currentStreak >= 5) earnedBadges.add("İstikrarlı ⚡");
-      if (currentStreak >= 10) earnedBadges.add("Durdurulamaz 🔥");
-      if (currentStreak >= 30) earnedBadges.add("Efsane 🏆");
+      // Logic aligned with ProfileScreen categories
+      if (currentStreak >= 1) earnedBadges.add("Newbie 🥚");
+      if (currentStreak >= 3) earnedBadges.add("3-Day Spark ✨");
+      if (currentStreak >= 7) earnedBadges.add("Weekly Warrior 🛡️");
+      if (currentStreak >= 30) earnedBadges.add("The Legend 🏆");
 
-      // Blue Zone Kriteri: Eğer seri 5+ ise ve saat sabah 05:00-10:00 arasındaysa
+      // Blue Zone Criterion: If streak 5+ and completed between 05:00-10:00 AM
       int hour = DateTime.now().hour;
       if (currentStreak >= 5 && (hour >= 5 && hour <= 10)) {
-        earnedBadges.add("Uzun Ömür Ustası 🌿");
+        earnedBadges.add("Longevity Master 🌿");
       }
 
       if (earnedBadges.isNotEmpty) {
         await userDoc.update({
-          // arrayUnion: Listede olmayanları ekler, olanları tekrar eklemez.
-          'badges': FieldValue.arrayUnion(earnedBadges)
+          // arrayUnion: Adds only if not already present in the list
+          'earnedBadges': FieldValue.arrayUnion(earnedBadges)
         });
-        print("Rozetler güncellendi: $earnedBadges");
+        print("Badges updated in Firestore: $earnedBadges");
       }
     } catch (e) {
-      print("Rozet güncellenirken hata oluştu: $e");
+      print("Error updating badges: $e");
     }
   }
 }
