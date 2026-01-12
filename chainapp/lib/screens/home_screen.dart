@@ -112,17 +112,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- BİLDİRİM SAATİ SEÇME ---
   Future<void> _pickTime() async {
+    // 1. Saat Seçiciyi Göster
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: _notificationTime ?? TimeOfDay.now(),
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFA68FFF),
+              primary: Color(0xFFA68FFF), // Seçili renk
               onPrimary: Colors.white,
-              surface: Color(0xFF142A52),
+              surface: Color(0xFF142A52), // Arka plan
               onSurface: Colors.white,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFA68FFF), // Buton yazıları
+              ),
             ),
           ),
           child: child!,
@@ -130,17 +136,52 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
+    // 2. Eğer kullanıcı bir saat seçtiyse işlem yap
     if (picked != null) {
       setState(() => _notificationTime = picked);
-      await NotificationService().scheduleDailyNotification(
-        id: widget.chainId.hashCode,
-        title: "Keep the streak alive! 🔥",
-        body: "Don't forget to check in for ${widget.chainName}",
-        time: picked,
-      );
+
+      // Kullanıcıya işlemin başladığını hissettir
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Daily reminder set for ${picked.format(context)} ⏰")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Hatırlatıcı ayarlanıyor..."),
+          duration: Duration(milliseconds: 500),
+        ),
+      );
+
+      try {
+        // 🔥 KRİTİK NOKTA: Servisi çağırıyoruz
+        await NotificationService().scheduleDailyNotification(
+          id: widget.chainId.hashCode, // Her zincir için benzersiz ID
+          title: "Zinciri Kırma! 🔥",
+          body: "${widget.chainName} hedefini tamamlama vakti!",
+          time: picked,
+        );
+
+        // Başarılı olursa Yeşil Mesaj göster
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Hatırlatıcı her gün ${picked.format(context)} saati için kuruldu ⏰",
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        // Hata olursa Kırmızı Mesaj göster
+        print("PickTime Hatası: $e");
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Hata oluştu: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -374,277 +415,279 @@ class _HomeScreenState extends State<HomeScreen> {
             chain.membersCompletedToday.contains(currentUserId);
         final bool isBroken = chain.status == 'broken';
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF0A0E25),
-          bottomNavigationBar: _buildBottomBar(context, chain),
-          extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            title: Text(chain.name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.white)),
-            centerTitle: true,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+        return SafeArea(
+          child: Scaffold(
+            backgroundColor: const Color(0xFF0A0E25),
+            bottomNavigationBar: _buildBottomBar(context, chain),
+            extendBodyBehindAppBar: true,
+            appBar: AppBar(
+              title: Text(chain.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.white)),
+              centerTitle: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.notifications_active,
+                      color: _notificationTime != null
+                          ? Colors.amber
+                          : Colors.white54),
+                  onPressed: _pickTime,
+                )
+              ],
             ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.notifications_active,
-                    color: _notificationTime != null
-                        ? Colors.amber
-                        : Colors.white54),
-                onPressed: _pickTime,
-              )
-            ],
-          ),
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF0A0E25),
-                      Color(0xFF1F3D78),
-                      Color(0xFF6C5ECF)
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF0A0E25),
+                        Color(0xFF1F3D78),
+                        Color(0xFF6C5ECF)
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
                 ),
-              ),
-              SafeArea(
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. ZİNCİR
-                      SizedBox(
-                        height: 60,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: 7,
-                          itemBuilder: (context, index) {
-                            final date = DateTime.now()
-                                .subtract(Duration(days: 3 - index));
-                            final dayNum = DateFormat('d').format(date);
-                            final isToday = index == 3;
-                            final isFuture = index > 3;
-
-                            bool isDone = false;
-                            if (isToday)
-                              isDone = isCompletedToday;
-                            else if (!isFuture &&
-                                index >= (3 - chain.streakCount)) isDone = true;
-
-                            return _buildChainNode(
-                                dayNum, isDone, isToday, index == 6);
-                          },
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. ZİNCİR
+                        SizedBox(
+                          height: 60,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: 7,
+                            itemBuilder: (context, index) {
+                              final date = DateTime.now()
+                                  .subtract(Duration(days: 3 - index));
+                              final dayNum = DateFormat('d').format(date);
+                              final isToday = index == 3;
+                              final isFuture = index > 3;
+          
+                              bool isDone = false;
+                              if (isToday)
+                                isDone = isCompletedToday;
+                              else if (!isFuture &&
+                                  index >= (3 - chain.streakCount)) isDone = true;
+          
+                              return _buildChainNode(
+                                  dayNum, isDone, isToday, index == 6);
+                            },
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // 2. 🔥 AKSİYON BUTONU (GÜNCELLENMİŞ TASARIM)
-                      GestureDetector(
-                        // Yapıldıysa Tıklanmasın, Kırıksa Tamir, Değilse Check-in
-                        onTap: (isBroken || !isCompletedToday)
-                            ? () => _handleAction(chain)
-                            : null, // Sadece hem aktif hem de yapıldıysa kilitli kalır.
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Colors.white.withOpacity(0.1)),
-                              ),
-                              child: Row(
-                                children: [
-                                  // BUTON
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    width: 55,
-                                    height: 55,
-                                    decoration: BoxDecoration(
-                                      // 🔥 YAPILDIYSA: YEŞİL
-                                      // 🔥 KIRIKSA: KIRMIZI
-                                      // 🔥 YAPILMADIYSA: ŞEFFAF
-                                      color: isBroken
-                                          ? Colors.red
-                                          : (isCompletedToday
-                                              ? Colors.green
-                                              : Colors.transparent),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          // Çerçeve Rengi
-                                          color: isBroken
-                                              ? Colors.redAccent
-                                              : (isCompletedToday
-                                                  ? Colors.green
-                                                  : Colors
-                                                      .white54), // Beyaz/Gri Çerçeve
-                                          width: 2),
-                                      boxShadow: isCompletedToday
-                                          ? [
-                                              BoxShadow(
-                                                  color: Colors.green
-                                                      .withOpacity(0.5),
-                                                  blurRadius: 15)
-                                            ]
-                                          : [],
+          
+                        const SizedBox(height: 30),
+          
+                        // 2. 🔥 AKSİYON BUTONU (GÜNCELLENMİŞ TASARIM)
+                        GestureDetector(
+                          // Yapıldıysa Tıklanmasın, Kırıksa Tamir, Değilse Check-in
+                          onTap: (isBroken || !isCompletedToday)
+                              ? () => _handleAction(chain)
+                              : null, // Sadece hem aktif hem de yapıldıysa kilitli kalır.
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.1)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // BUTON
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 300),
+                                      width: 55,
+                                      height: 55,
+                                      decoration: BoxDecoration(
+                                        // 🔥 YAPILDIYSA: YEŞİL
+                                        // 🔥 KIRIKSA: KIRMIZI
+                                        // 🔥 YAPILMADIYSA: ŞEFFAF
+                                        color: isBroken
+                                            ? Colors.red
+                                            : (isCompletedToday
+                                                ? Colors.green
+                                                : Colors.transparent),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            // Çerçeve Rengi
+                                            color: isBroken
+                                                ? Colors.redAccent
+                                                : (isCompletedToday
+                                                    ? Colors.green
+                                                    : Colors
+                                                        .white54), // Beyaz/Gri Çerçeve
+                                            width: 2),
+                                        boxShadow: isCompletedToday
+                                            ? [
+                                                BoxShadow(
+                                                    color: Colors.green
+                                                        .withOpacity(0.5),
+                                                    blurRadius: 15)
+                                              ]
+                                            : [],
+                                      ),
+                                      child: Center(
+                                        child: isBroken
+                                            ? const Icon(Icons.build,
+                                                color: Colors.white)
+                                            : (isCompletedToday
+                                                // 🔥 TİK İKONU ARKA PLAN RENGİNDE (DELİK GİBİ GÖRÜNSÜN)
+                                                ? const Icon(Icons.check,
+                                                    color: Color(0xFF0A0E25),
+                                                    size: 30,
+                                                    weight: 800)
+                                                : null), // YAPILMADIYSA BOŞ
+                                      ),
                                     ),
-                                    child: Center(
-                                      child: isBroken
-                                          ? const Icon(Icons.build,
-                                              color: Colors.white)
-                                          : (isCompletedToday
-                                              // 🔥 TİK İKONU ARKA PLAN RENGİNDE (DELİK GİBİ GÖRÜNSÜN)
-                                              ? const Icon(Icons.check,
-                                                  color: Color(0xFF0A0E25),
-                                                  size: 30,
-                                                  weight: 800)
-                                              : null), // YAPILMADIYSA BOŞ
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 16),
-
-                                  // YAZILAR
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
+          
+                                    const SizedBox(width: 16),
+          
+                                    // YAZILAR
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                              isBroken
+                                                  ? "Chain Broken!"
+                                                  : "Daily Goal",
+                                              style: TextStyle(
+                                                  color: isBroken
+                                                      ? Colors.redAccent
+                                                      : Colors.white54,
+                                                  fontSize: 12)),
+                                          Text(
                                             isBroken
-                                                ? "Chain Broken!"
-                                                : "Daily Goal",
+                                                ? "Tap to Repair (50 XP)"
+                                                : (chain.purpose.isNotEmpty
+                                                    ? chain.purpose
+                                                    : chain.name),
                                             style: TextStyle(
-                                                color: isBroken
-                                                    ? Colors.redAccent
-                                                    : Colors.white54,
-                                                fontSize: 12)),
-                                        Text(
-                                          isBroken
-                                              ? "Tap to Repair (50 XP)"
-                                              : (chain.purpose.isNotEmpty
-                                                  ? chain.purpose
-                                                  : chain.name),
-                                          style: TextStyle(
-                                            color: isCompletedToday
-                                                ? Colors.white.withOpacity(
-                                                    0.5) // Yapıldıysa sönük
-                                                : Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            decoration: isCompletedToday
-                                                ? TextDecoration.lineThrough
-                                                : null,
-                                            decorationColor: Colors.white54,
+                                              color: isCompletedToday
+                                                  ? Colors.white.withOpacity(
+                                                      0.5) // Yapıldıysa sönük
+                                                  : Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              decoration: isCompletedToday
+                                                  ? TextDecoration.lineThrough
+                                                  : null,
+                                              decorationColor: Colors.white54,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // 3. ÜYELER
-                      const Text("Team Status",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 90,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: chain.members.length,
-                          itemBuilder: (context, index) {
-                            final memberId = chain.members[index];
-                            final isMemCompleted =
-                                chain.membersCompletedToday.contains(memberId);
-                            return _buildMemberAvatar(
-                                memberId, isMemCompleted, chain.id, chain.name);
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // 4. DESCRIPTION
-                      GestureDetector(
-                        onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    ChainDetailScreen(chain: chain))),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text("About this Chain",
-                                      style: TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold)),
-                                  Icon(Icons.arrow_forward_ios,
-                                      color: Colors.white.withOpacity(0.3),
-                                      size: 14),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                chain.description.isNotEmpty
-                                    ? chain.description
-                                    : "No description provided.",
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    height: 1.4),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+          
+                        const SizedBox(height: 30),
+          
+                        // 3. ÜYELER
+                        const Text("Team Status",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 90,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: chain.members.length,
+                            itemBuilder: (context, index) {
+                              final memberId = chain.members[index];
+                              final isMemCompleted =
+                                  chain.membersCompletedToday.contains(memberId);
+                              return _buildMemberAvatar(
+                                  memberId, isMemCompleted, chain.id, chain.name);
+                            },
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 50),
-                    ],
+          
+                        const SizedBox(height: 20),
+          
+                        // 4. DESCRIPTION
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      ChainDetailScreen(chain: chain))),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text("About this Chain",
+                                        style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold)),
+                                    Icon(Icons.arrow_forward_ios,
+                                        color: Colors.white.withOpacity(0.3),
+                                        size: 14),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  chain.description.isNotEmpty
+                                      ? chain.description
+                                      : "No description provided.",
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      height: 1.4),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+          
+                        const SizedBox(height: 50),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

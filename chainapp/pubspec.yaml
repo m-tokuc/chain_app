@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   audioplayers: ^6.5.1
+  provider: ^6.1.1 # Durum yönetimi için
   # Firebase Core & Plugins
   firebase_core: ^4.3.0
   firebase_auth: ^6.1.3
@@ -29,6 +30,7 @@ dependencies:
 
   # Bildirimler
   flutter_local_notifications: ^17.2.2 
+  flutter_timezone: ^4.1.1
 
 dev_dependencies:
   flutter_test:

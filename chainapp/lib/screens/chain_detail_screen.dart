@@ -140,243 +140,245 @@ class _ChainDetailScreenState extends State<ChainDetailScreen> {
         // Yönetici miyim?
         final bool isCreator = _currentUser?.uid == currentChain.creatorId;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF0A0E25),
-          appBar: AppBar(
-            title: Text(currentChain.name,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-            centerTitle: true,
-            backgroundColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // İSTATİSTİKLER
-                Row(
-                  children: [
-                    Expanded(
-                        child: _buildStatCard("Current Streak",
-                            "${currentChain.streakCount} 🔥", Colors.orange)),
-                    const SizedBox(width: 15),
-                    Expanded(
-                        child: _buildStatCard("Total Members",
-                            "${currentChain.members.length} 👥", Colors.blue)),
-                  ],
-                ),
-                const SizedBox(height: 30),
-
-                // DESCRIPTION
-                const Text("Purpose & Description",
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(
-                    currentChain.purpose.isNotEmpty
-                        ? currentChain.purpose
-                        : "Goal: ${currentChain.name}",
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(currentChain.description,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 15, height: 1.5)),
-
-                const SizedBox(height: 30),
-
-                // DAVET KODU (Herkes Görebilir)
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [
-                      const Color(0xFFA68FFF).withOpacity(0.2),
-                      const Color(0xFFA68FFF).withOpacity(0.05)
-                    ]),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: const Color(0xFFA68FFF).withOpacity(0.3)),
-                  ),
-                  child: Column(
+        return SafeArea(
+          child: Scaffold(
+            backgroundColor: const Color(0xFF0A0E25),
+            appBar: AppBar(
+              title: Text(currentChain.name,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+              centerTitle: true,
+              backgroundColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // İSTATİSTİKLER
+                  Row(
                     children: [
-                      const Text("Invite Code",
-                          style: TextStyle(color: Colors.white70)),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(currentChain.inviteCode ?? "----",
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 4)),
-                          const SizedBox(width: 15),
-                          IconButton(
-                            icon: const Icon(Icons.copy,
-                                color: Color(0xFFA68FFF)),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(
-                                  text: currentChain.inviteCode ?? ""));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text("Code copied to clipboard!")));
-                            },
-                          )
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFA68FFF),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12)),
-                          onPressed: () {
-                            try {
-                              Share.share(
-                                  'Join my "${currentChain.name}" chain on ChainApp! 🚀\nUse code: ${currentChain.inviteCode}');
-                            } catch (e) {
-                              print("Share error: $e");
-                            }
-                          },
-                          icon: const Icon(Icons.share, color: Colors.white),
-                          label: const Text("Share Code",
-                              style: TextStyle(color: Colors.white)),
-                        ),
-                      )
+                      Expanded(
+                          child: _buildStatCard("Current Streak",
+                              "${currentChain.streakCount} 🔥", Colors.orange)),
+                      const SizedBox(width: 15),
+                      Expanded(
+                          child: _buildStatCard("Total Members",
+                              "${currentChain.members.length} 👥", Colors.blue)),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // TAKVİM
-                _buildCalendarView(context, currentChain.streakCount),
-
-                const SizedBox(height: 30),
-
-                // 🔥 YENİ: ÜYE LİSTESİ (Sadece Admin Silebilir)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Members List",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                    if (isCreator)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: const Text("Admin Mode 👑",
-                            style: TextStyle(
-                                color: Colors.amber,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
-                      )
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: currentChain.members.length,
-                  itemBuilder: (context, index) {
-                    final memberId = currentChain.members[index];
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(memberId)
-                          .get(),
-                      builder: (context, userSnap) {
-                        if (!userSnap.hasData) return const SizedBox();
-                        final userData =
-                            userSnap.data!.data() as Map<String, dynamic>?;
-                        final name = userData?['name'] ?? 'User';
-                        final avatarSeed = userData?['avatarSeed'] ?? 'user';
-
-                        // Yöneticinin kendisi mi?
-                        final bool isSelf = memberId == _currentUser?.uid;
-                        // Bu kişi Yönetici mi? (Tac ikonu koymak için)
-                        final bool isThisMemberAdmin =
-                            memberId == currentChain.creatorId;
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: Colors.white.withOpacity(0.1))),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundColor: Colors.black26,
-                                backgroundImage: NetworkImage(
-                                    "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Text(name,
-                                            style: TextStyle(
-                                                color: isSelf
-                                                    ? const Color(0xFFA68FFF)
-                                                    : Colors.white,
-                                                fontWeight: FontWeight.bold)),
-                                        if (isThisMemberAdmin)
-                                          const Padding(
-                                              padding: EdgeInsets.only(left: 6),
-                                              child: Icon(Icons.star,
-                                                  color: Colors.amber,
-                                                  size: 16)),
-                                      ],
-                                    ),
-                                    Text(isSelf ? "You" : "Member",
-                                        style: TextStyle(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            fontSize: 12)),
-                                  ],
-                                ),
-                              ),
-
-                              // 🔥 SİLME BUTONU: Sadece YÖNETİCİ görsün ve KENDİNİ SİLEMESİN
-                              if (isCreator && !isSelf)
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.redAccent),
-                                  onPressed: () => _kickMember(memberId, name),
-                                )
-                            ],
+                  const SizedBox(height: 30),
+          
+                  // DESCRIPTION
+                  const Text("Purpose & Description",
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                      currentChain.purpose.isNotEmpty
+                          ? currentChain.purpose
+                          : "Goal: ${currentChain.name}",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(currentChain.description,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 15, height: 1.5)),
+          
+                  const SizedBox(height: 30),
+          
+                  // DAVET KODU (Herkes Görebilir)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        const Color(0xFFA68FFF).withOpacity(0.2),
+                        const Color(0xFFA68FFF).withOpacity(0.05)
+                      ]),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: const Color(0xFFA68FFF).withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text("Invite Code",
+                            style: TextStyle(color: Colors.white70)),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(currentChain.inviteCode ?? "----",
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 4)),
+                            const SizedBox(width: 15),
+                            IconButton(
+                              icon: const Icon(Icons.copy,
+                                  color: Color(0xFFA68FFF)),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(
+                                    text: currentChain.inviteCode ?? ""));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text("Code copied to clipboard!")));
+                              },
+                            )
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFA68FFF),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12)),
+                            onPressed: () {
+                              try {
+                                Share.share(
+                                    'Join my "${currentChain.name}" chain on ChainApp! 🚀\nUse code: ${currentChain.inviteCode}');
+                              } catch (e) {
+                                print("Share error: $e");
+                              }
+                            },
+                            icon: const Icon(Icons.share, color: Colors.white),
+                            label: const Text("Share Code",
+                                style: TextStyle(color: Colors.white)),
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 50),
-              ],
+                        )
+                      ],
+                    ),
+                  ),
+          
+                  const SizedBox(height: 30),
+          
+                  // TAKVİM
+                  _buildCalendarView(context, currentChain.streakCount),
+          
+                  const SizedBox(height: 30),
+          
+                  // 🔥 YENİ: ÜYE LİSTESİ (Sadece Admin Silebilir)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Members List",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      if (isCreator)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: const Text("Admin Mode 👑",
+                              style: TextStyle(
+                                  color: Colors.amber,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                        )
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+          
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: currentChain.members.length,
+                    itemBuilder: (context, index) {
+                      final memberId = currentChain.members[index];
+                      return FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(memberId)
+                            .get(),
+                        builder: (context, userSnap) {
+                          if (!userSnap.hasData) return const SizedBox();
+                          final userData =
+                              userSnap.data!.data() as Map<String, dynamic>?;
+                          final name = userData?['name'] ?? 'User';
+                          final avatarSeed = userData?['avatarSeed'] ?? 'user';
+          
+                          // Yöneticinin kendisi mi?
+                          final bool isSelf = memberId == _currentUser?.uid;
+                          // Bu kişi Yönetici mi? (Tac ikonu koymak için)
+                          final bool isThisMemberAdmin =
+                              memberId == currentChain.creatorId;
+          
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.1))),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: Colors.black26,
+                                  backgroundImage: NetworkImage(
+                                      "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(name,
+                                              style: TextStyle(
+                                                  color: isSelf
+                                                      ? const Color(0xFFA68FFF)
+                                                      : Colors.white,
+                                                  fontWeight: FontWeight.bold)),
+                                          if (isThisMemberAdmin)
+                                            const Padding(
+                                                padding: EdgeInsets.only(left: 6),
+                                                child: Icon(Icons.star,
+                                                    color: Colors.amber,
+                                                    size: 16)),
+                                        ],
+                                      ),
+                                      Text(isSelf ? "You" : "Member",
+                                          style: TextStyle(
+                                              color:
+                                                  Colors.white.withOpacity(0.5),
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+          
+                                // 🔥 SİLME BUTONU: Sadece YÖNETİCİ görsün ve KENDİNİ SİLEMESİN
+                                if (isCreator && !isSelf)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.redAccent),
+                                    onPressed: () => _kickMember(memberId, name),
+                                  )
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+          
+                  const SizedBox(height: 50),
+                ],
+              ),
             ),
           ),
         );
