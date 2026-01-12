@@ -32,34 +32,47 @@ class ChainTimerScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: Colors.cyanAccent, size: 35),
-                    onPressed: () => timerProvider.setMinutes(timerProvider.selectedMinutes - 1),
+                    icon: const Icon(Icons.remove_circle_outline,
+                        color: Colors.cyanAccent, size: 35),
+                    onPressed: () => timerProvider
+                        .setMinutes(timerProvider.selectedMinutes - 1),
                   ),
-                  Text("${timerProvider.selectedMinutes} Dakika", 
-                    style: const TextStyle(color: Colors.white, fontSize: 18)),
+                  Text("${timerProvider.selectedMinutes} Dakika",
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 18)),
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 35),
-                    onPressed: () => timerProvider.setMinutes(timerProvider.selectedMinutes + 1),
+                    icon: const Icon(Icons.add_circle_outline,
+                        color: Colors.cyanAccent, size: 35),
+                    onPressed: () => timerProvider
+                        .setMinutes(timerProvider.selectedMinutes + 1),
                   ),
                 ],
               ),
             const SizedBox(height: 40),
             Text(
               _formatTime(timerProvider.remainingSeconds),
-              style: const TextStyle(fontSize: 80, color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  fontSize: 80,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 60),
             GestureDetector(
               onTap: () => timerProvider.toggleTimer(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(30),
-                  gradient: const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]),
+                  gradient: const LinearGradient(
+                      colors: [Colors.cyanAccent, Colors.blueAccent]),
                 ),
                 child: Text(
                   timerProvider.isRunning ? "DURAKLAT" : "BAŞLAT",
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                  style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18),
                 ),
               ),
             ),

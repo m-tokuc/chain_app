@@ -34,7 +34,7 @@ class TimerProvider extends ChangeNotifier {
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_remainingSeconds > 0) {
           _remainingSeconds--;
-          notifyListeners(); 
+          notifyListeners();
         } else {
           _onFinished();
         }
@@ -46,7 +46,7 @@ class TimerProvider extends ChangeNotifier {
   void _onFinished() async {
     _timer?.cancel();
     _isRunning = false;
-    _remainingSeconds = _selectedMinutes * 60; 
+    _remainingSeconds = _selectedMinutes * 60;
     notifyListeners();
 
     try {

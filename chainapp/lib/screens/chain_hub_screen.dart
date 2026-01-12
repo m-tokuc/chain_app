@@ -1,22 +1,20 @@
-import 'package:chainapp/screens/login_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 🔥 EKLENDİ
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🔥 Eksik import eklendi
 import '../services/chain_service.dart';
 import '../services/firebase_auth_service.dart';
-import '../services/firestore_service.dart'; // 🔥 EKLENDİ
+import '../services/firestore_service.dart';
 import 'create_chain_screen.dart';
 import 'join_chain_screen.dart';
 import 'home_screen.dart';
+import 'login_screen.dart'; // 🔥 Eksik import eklendi
 
-// 🔥 ARTIK STATEFUL WIDGET (Başlangıçta kontrol yapmak için)
 class ChainHubScreen extends StatefulWidget {
   const ChainHubScreen({super.key});
 
   @override
   State<ChainHubScreen> createState() => _ChainHubScreenState();
 }
-
 
 class _ChainHubScreenState extends State<ChainHubScreen> {
   final chainService = ChainService();
@@ -28,13 +26,13 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
     super.initState();
     userId = authService.currentUserId();
 
-    //  UYGULAMA AÇILINCA ZİNCİR KONTROLÜ YAP (XP CEZA SİSTEMİ)
+    // UYGULAMA AÇILINCA ZİNCİR KONTROLÜ YAP (XP CEZA SİSTEMİ)
     if (userId != null) {
       FirestoreService().checkChainsOnAppStart(userId!);
     }
   }
 
-    Future<void> _logout(BuildContext context) async {
+  Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -43,7 +41,7 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
     );
   }
 
-  // 🔥 ROZET TASARIMI WIDGET'I (Sadece görsellik için yardımcı fonksiyon)
+  // ROZET TASARIMI WIDGET'I
   Widget _buildBadgeList(List<dynamic> badges) {
     if (badges.isEmpty) return const SizedBox();
     return Wrap(
@@ -101,7 +99,7 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          //  BACKGROUND
+          // ARKA PLAN
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -124,7 +122,7 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // 🔥 EKLEDİĞİMİZ ROZET BÖLÜMÜ (Firestore'dan anlık çeker)
+                // ROZET BÖLÜMÜ
                 if (userId != null)
                   StreamBuilder<DocumentSnapshot>(
                     stream: FirebaseFirestore.instance
@@ -160,8 +158,7 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                     },
                   ),
 
-                //  MY CHAINS (VERTICAL LIST)
-                // ===============================
+                // ZİNCİR LİSTESİ
                 Expanded(
                   child: userId == null
                       ? const Center(
@@ -179,7 +176,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
 
                             final chains = snapshot.data ?? [];
 
-                            // ❗ BOŞ DURUM
                             if (chains.isEmpty) {
                               return Center(
                                 child: Padding(
@@ -206,7 +202,7 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                               );
                             }
 
-                            // ✅ ZİNCİR LİSTESİ
+                            // LİSTE ELEMANLARI
                             return ListView.builder(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20, vertical: 10),
@@ -214,7 +210,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                               itemBuilder: (context, index) {
                                 final chain = chains[index];
 
-                                // 🔥 GÜVENLİ VERİ ÇEKME
                                 final String chainId =
                                     chain['id']?.toString() ?? '';
                                 final String chainName =
@@ -223,7 +218,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                                 final String period =
                                     chain['period']?.toString() ?? 'daily';
 
-                                // Zincir durumu (Kırık mı?)
                                 final String status =
                                     chain['status']?.toString() ?? 'active';
                                 final bool isBroken = status == 'broken';
@@ -246,7 +240,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                                     margin: const EdgeInsets.only(bottom: 14),
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      // Kırık zincirleri kırmızımsı, normal zincirleri şeffaf yap
                                       color: isBroken
                                           ? Colors.red.withOpacity(0.1)
                                           : Colors.white.withOpacity(0.1),
@@ -293,19 +286,28 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                chainName,
-                                                style: TextStyle(
-                                                    color: isBroken
-                                                        ? Colors.red[200]
-                                                        : Colors.white,
-                                                    fontSize: 18,
-                                                    decoration: isBroken
-                                                        ? TextDecoration
-                                                            .lineThrough
-                                                        : null,
-                                                    fontWeight:
-                                                        FontWeight.bold),
+                                              // 🔥 İŞTE SİHİRLİ KISIM BURASI!
+                                              // Burada Hero olmazsa animasyon ÇALIŞMAZ.
+                                              Hero(
+                                                tag: 'title-$chainId',
+                                                child: Material(
+                                                  type:
+                                                      MaterialType.transparency,
+                                                  child: Text(
+                                                    chainName,
+                                                    style: TextStyle(
+                                                        color: isBroken
+                                                            ? Colors.red[200]
+                                                            : Colors.white,
+                                                        fontSize: 18,
+                                                        decoration: isBroken
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : null,
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ),
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
@@ -343,7 +345,6 @@ class _ChainHubScreenState extends State<ChainHubScreen> {
                 ),
 
                 // ➕ BUTONLAR
-                // ===============================
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
                   child: Row(

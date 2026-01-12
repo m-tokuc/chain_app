@@ -1,9 +1,11 @@
-import 'dart:async'; // StreamSubscription için gerekli
-import 'dart:ui'; // Glassmorphism efektleri için
+import 'dart:async'; // StreamSubscription için
+import 'dart:math'; // Konfeti yönü için
+import 'dart:ui'; // Glassmorphism için
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:confetti/confetti.dart'; // 🔥 1. IMPORT EKLENDİ
 
 // Servisler ve Modeller
 import '../services/firestore_service.dart';
@@ -38,24 +40,32 @@ class _HomeScreenState extends State<HomeScreen> {
   // Bildirim saati
   TimeOfDay? _notificationTime;
 
-  // 🔥 CANLI BİLDİRİM DİNLEYİCİSİ İÇİN DEĞİŞKEN
+  // Canlı bildirim dinleyicisi
   StreamSubscription? _nudgeSubscription;
+
+  // 🔥 2. KONFETİ KONTROLCÜSÜ
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
-    // 🔥 Uygulama açılınca gelen dürtmeleri dinlemeye başla
+    // 🔥 Konfeti süresini ayarlıyoruz (1 saniye patlasın)
+    _confettiController =
+        ConfettiController(duration: const Duration(seconds: 1));
+
+    // Dürtme dinleyicisi
     _listenForNudges();
   }
 
   @override
   void dispose() {
-    // 🔥 Sayfadan çıkınca dinlemeyi durdur (Performans için)
+    // 🔥 Konfeti hafızasını temizle
+    _confettiController.dispose();
     _nudgeSubscription?.cancel();
     super.dispose();
   }
 
-  // 🔥 CANLI DÜRTME DİNLEYİCİSİ (UYGULAMA AÇIKKEN ÇALIŞIR)
+  // --- CANLI DÜRTME DİNLEYİCİSİ ---
   void _listenForNudges() {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return;
@@ -64,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .collection('users')
         .doc(userId)
         .collection('notifications')
-        .where('isRead', isEqualTo: false) // Sadece okunmamışları getir
+        .where('isRead', isEqualTo: false)
         .limit(1)
         .snapshots()
         .listen((snapshot) {
@@ -73,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
           final data = change.doc.data() as Map<String, dynamic>;
           final msg = data['message'] ?? "Seni dürttü!";
 
-          // Ekranda mesajı göster
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -84,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(child: Text("Biri seni dürttü: \"$msg\"")),
                   ],
                 ),
-                backgroundColor: const Color(0xFFA68FFF), // Mor renk
+                backgroundColor: const Color(0xFFA68FFF),
                 duration: const Duration(seconds: 4),
                 action: SnackBarAction(
                   label: "TAMAM",
@@ -95,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             );
-            // Görüldü işaretle
             change.doc.reference.update({'isRead': true});
           }
         }
@@ -112,8 +120,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (chain.status == 'broken') {
       try {
         final batch = FirebaseFirestore.instance.batch();
-
-        // A. Zinciri Aktif Yap ve Bugünü Temizle
         DocumentReference chainRef =
             FirebaseFirestore.instance.collection('chains').doc(chain.id);
         batch.set(
@@ -125,7 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             SetOptions(merge: true));
 
-        // B. Kullanıcıdan XP Düş (-50)
         DocumentReference userRef =
             FirebaseFirestore.instance.collection('users').doc(userId);
         batch.set(
@@ -172,6 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final newLog = ChainLog(
             userId: userId, logDate: DateTime.now(), note: "Manual Check-in");
         await _firestoreService.performCheckIn(chain.id, userId, newLog);
+
+        // 🔥 3. KONFETİYİ PATLAT! 🎉
+        _confettiController.play();
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (picked != null) {
       setState(() => _notificationTime = picked);
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -249,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // 🔥 MESAJ YAZMA PENCERESİ (YENİ EKLENDİ)
+  // --- MESAJLI DÜRTME PENCERESİ ---
   void _showNudgeDialog(
       String memberId, String userName, String chainId, String chainName) {
     final TextEditingController messageController = TextEditingController();
@@ -312,12 +319,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             onPressed: () async {
               Navigator.pop(ctx);
-
               String msg = messageController.text.trim();
               if (msg.isEmpty) msg = "Seni bekliyoruz! 👋";
 
               try {
-                // 🔥 Servisi mesaj parametresiyle çağırıyoruz
                 await FirestoreService().sendNudge(
                     currentUserId!, memberId, chainId, chainName, msg);
 
@@ -335,9 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("Hata: ${e.toString()}"),
-                      backgroundColor: Colors.red,
-                    ),
+                        content: Text("Hata: $e"), backgroundColor: Colors.red),
                   );
                 }
               }
@@ -423,7 +426,6 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Stack(
                 children: [
-                  // AVATAR
                   Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
@@ -448,15 +450,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           "https://api.dicebear.com/9.x/adventurer/png?seed=$avatarSeed&backgroundColor=b6e3f4"),
                     ),
                   ),
-
-                  // DÜRTME BUTONU
                   if (!isCompleted && !isMe)
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
                         onTap: () {
-                          // 🔥 PENCERE AÇ
                           _showNudgeDialog(
                               memberId, userName, chainId, chainName);
                         },
@@ -821,6 +820,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 50),
                       ],
                     ),
+                  ),
+                ),
+
+                // 🔥 4. KONFETİ WIDGET'I (EN ÜSTTE GÖRÜNMESİ İÇİN STACK'İN SONUNA)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirectionality:
+                        BlastDirectionality.explosive, // Merkezden patlama
+                    shouldLoop: false, // Sürekli tekrar etmesin
+                    colors: const [
+                      Colors.green,
+                      Colors.blue,
+                      Colors.pink,
+                      Colors.orange,
+                      Colors.purple
+                    ],
+                    numberOfParticles: 20, // Parçacık sayısı
+                    gravity: 0.2, // Yavaşça süzülsün
                   ),
                 ),
               ],
