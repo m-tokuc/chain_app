@@ -299,47 +299,80 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildChainNode(
       String dayNum, bool isDone, bool isToday, bool isLast) {
+    // Renk ve Stil Tanımlamaları (Temayı buraya topladık)
+    final Color doneColor = Colors.greenAccent;
+    final Color activeColor = Colors.white;
+    final Color inactiveColor = Colors.white24;
+
     return SizedBox(
       width: 60,
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // 1. BAĞLANTI ÇİZGİSİ (Zincir Halkası)
           if (!isLast)
             Positioned(
-                right: 0,
-                left: 30,
-                child: Container(
-                    height: 4,
-                    color: isDone ? Colors.greenAccent : Colors.white24)),
+              right: 0,
+              left: 30, // Node'un merkezinden başlat
+              child: Container(
+                height: 3, // Çizgi kalınlığı
+                decoration: BoxDecoration(
+                  color: isDone ? doneColor.withOpacity(0.5) : inactiveColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+          // 2. ANA DAİRE (Node)
           Container(
             width: 45,
             height: 45,
             decoration: BoxDecoration(
+              // Arka plan: Tamamlandıysa yeşil, bugünse hafif beyaz, değilse şeffaf
               color: isDone
-                  ? Colors.green
+                  ? Colors.green.withOpacity(0.8)
                   : (isToday
                       ? Colors.white.withOpacity(0.1)
                       : Colors.transparent),
               shape: BoxShape.circle,
+              // Kenarlık: Tamamlandıysa parlak yeşil, bugünse düz beyaz, değilse mat
               border: Border.all(
-                  color: isDone
-                      ? Colors.greenAccent
-                      : (isToday ? Colors.white : Colors.white24),
-                  width: isToday ? 2 : 1),
+                color: isDone
+                    ? doneColor
+                    : (isToday ? activeColor : inactiveColor),
+                width: (isToday || isDone) ? 2 : 1,
+              ),
+              // Gölgelendirme: Sadece tamamlananlar için yeşil parlama
               boxShadow: isDone
                   ? [
                       BoxShadow(
-                          color: Colors.green.withOpacity(0.5), blurRadius: 10)
+                        color: Colors.green.withOpacity(0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      )
                     ]
                   : [],
             ),
             child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
                 child: isDone
-                    ? const Icon(Icons.check, color: Colors.white, size: 24)
-                    : Text(dayNum,
+                    ? Icon(Icons.check,
+                        key: const ValueKey("check"),
+                        color: activeColor,
+                        size: 26)
+                    : Text(
+                        dayNum,
+                        key: const ValueKey("text"),
                         style: TextStyle(
-                            color: isToday ? Colors.white : Colors.white54,
-                            fontWeight: FontWeight.bold))),
+                          color: isToday ? activeColor : Colors.white54,
+                          fontSize: 16,
+                          fontWeight:
+                              isToday ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+              ),
+            ),
           ),
         ],
       ),
@@ -585,25 +618,39 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                            height: 60,
-                            child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: 7,
-                                itemBuilder: (context, index) {
-                                  final date = DateTime.now()
-                                      .subtract(Duration(days: 3 - index));
-                                  final dayNum = DateFormat('d').format(date);
-                                  final isToday = index == 3;
-                                  final isFuture = index > 3;
-                                  bool isDone = false;
-                                  if (isToday)
-                                    isDone = isCompletedToday;
-                                  else if (!isFuture &&
-                                      index >= (3 - chain.streakCount))
-                                    isDone = true;
-                                  return _buildChainNode(
-                                      dayNum, isDone, isToday, index == 6);
-                                })),
+                          height: 60,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: 7,
+                            itemBuilder: (context, index) {
+                              // Düğümün tarihini hesapla
+                              final nodeDate = DateTime.now()
+                                  .subtract(Duration(days: 3 - index));
+                              final nodeDateStr =
+                                  DateFormat('yyyy-MM-dd').format(nodeDate);
+
+                              final dayNum = DateFormat('d').format(nodeDate);
+                              final isToday = index == 3;
+                              final isFuture = index > 3;
+
+                              bool isDone = false;
+
+                              if (isToday) {
+                                // Bugün için: Giriş yapan kullanıcılar listesinde ben var mıyım?
+                                isDone = chain.membersCompletedToday
+                                    .contains(currentUserId);
+                              } else if (!isFuture) {
+                                // Geçmiş günler için: Grup bu tarihi başarıyla tamamladı mı?
+                                // (completedDates listesi Firestore'dan geliyor olmalı)
+                                isDone = (chain.completedDates ?? [])
+                                    .contains(nodeDateStr);
+                              }
+
+                              return _buildChainNode(
+                                  dayNum, isDone, isToday, index == 6);
+                            },
+                          ),
+                        ),
                         const SizedBox(height: 30),
                         GestureDetector(
                           onTap: (isBroken || !isCompletedToday)

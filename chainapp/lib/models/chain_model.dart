@@ -13,6 +13,7 @@ class ChainModel {
   final String status;
   final int streakCount;
   final DateTime createdAt;
+  final List<String> completedDates;
 
   ChainModel({
     required this.id,
@@ -27,6 +28,7 @@ class ChainModel {
     this.status = 'active',
     this.streakCount = 0,
     required this.createdAt,
+    this.completedDates = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -60,6 +62,7 @@ class ChainModel {
       status: map['status'] ?? 'active',
       streakCount: map['streakCount'] ?? 0,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      completedDates: List<String>.from(map['completedDates'] ?? []),
     );
   }
 }

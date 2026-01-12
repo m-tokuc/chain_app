@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/chain_model.dart';
 import '../models/chain_log_model.dart';
@@ -82,21 +83,39 @@ class FirestoreService {
   // --- 4. CHECK-IN YAPMA ---
   Future<void> performCheckIn(
       String chainId, String userId, ChainLog logData) async {
-    // Log ekle
-    await _db
-        .collection('chains')
-        .doc(chainId)
-        .collection('logs')
-        .add(logData.toMap());
+    final chainRef = _db.collection('chains').doc(chainId);
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // Zinciri güncelle (Bugün yapıldı olarak işaretle ve streak artır)
-    await _db.collection('chains').doc(chainId).update({
-      'membersCompletedToday': FieldValue.arrayUnion([userId]),
-      'streakCount': FieldValue.increment(1),
+    return _db.runTransaction((transaction) async {
+      DocumentSnapshot chainSnap = await transaction.get(chainRef);
+      Map<String, dynamic> data = chainSnap.data() as Map<String, dynamic>;
+
+      List members = data['members'] ?? [];
+      List completedToday = data['membersCompletedToday'] ?? [];
+      List history =
+          data['completedDates'] ?? []; // ["2026-01-11", "2026-01-12"] gibi
+
+      if (completedToday.contains(userId)) return;
+
+      // 1. Kullanıcıyı bugünkü listeye ekle
+      transaction.update(chainRef, {
+        'membersCompletedToday': FieldValue.arrayUnion([userId]),
+      });
+
+      // 2. EĞER HERKES TAMAMLADIYSA: Streak artır ve tarihi tarihe ekle
+      if (completedToday.length + 1 == members.length) {
+        transaction.update(chainRef, {
+          'streakCount': FieldValue.increment(1),
+          'completedDates': FieldValue.arrayUnion([todayStr]),
+        });
+      }
+
+      // Bireysel logu ekle
+      transaction.set(chainRef.collection('logs').doc(), logData.toMap());
+
+      // 5. XP Uygula
+      await _applyXPChange(userId, 10);
     });
-
-    // Kullanıcıya XP ver (+10)
-    await _applyXPChange(userId, 10);
   }
 
   // --- YARDIMCI: XP EKLE/ÇIKAR VE ROZET GÜNCELLE ---
