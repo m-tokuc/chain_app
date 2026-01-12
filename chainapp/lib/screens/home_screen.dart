@@ -1,12 +1,16 @@
-import 'dart:ui';
+import 'dart:ui'; // Glassmorphism efektleri için
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// Servisler ve Modeller (Dosya yollarının doğru olduğundan emin ol)
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../models/chain_model.dart';
 import '../models/chain_log_model.dart';
+
+// Diğer Sayfalar
 import 'chain_hub_screen.dart';
 import 'profile_screen.dart';
 import 'timer_screen.dart';
@@ -29,6 +33,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _firestoreService = FirestoreService();
   final _auth = FirebaseAuth.instance;
+
+  // Bildirim saati
   TimeOfDay? _notificationTime;
 
   // --- ANA AKSİYON (CHECK-IN / REPAIR) ---
@@ -49,13 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
             {
               'status': 'active',
               'streakCount': 0,
-              'membersCompletedToday':
-                  [], // Tamir edildiğinde listeyi boşaltıyoruz
+              'membersCompletedToday': [],
             },
             SetOptions(merge: true));
 
         // B. Kullanıcıdan XP Düş (-50)
-        // .set(merge: true) kullanıyoruz ki döküman yoksa hata vermesin, oluştursun
         DocumentReference userRef =
             FirebaseFirestore.instance.collection('users').doc(userId);
         batch.set(
@@ -65,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             SetOptions(merge: true));
 
-        await batch.commit(); // İki işlemi aynı anda onayla
+        await batch.commit();
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -75,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Repair Error: $e"), backgroundColor: Colors.red));
       }
-      return; // Tamir bittikten sonra fonksiyonun geri kalanını (check-in) çalıştırma
+      return;
     }
 
     // --- DURUM 2: ZİNCİR AKTİFSE (NORMAL CHECK-IN) ---
@@ -112,7 +116,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- BİLDİRİM SAATİ SEÇME ---
   Future<void> _pickTime() async {
-    // 1. Saat Seçiciyi Göster
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _notificationTime ?? TimeOfDay.now(),
@@ -120,14 +123,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFA68FFF), // Seçili renk
+              primary: Color(0xFFA68FFF),
               onPrimary: Colors.white,
-              surface: Color(0xFF142A52), // Arka plan
+              surface: Color(0xFF142A52),
               onSurface: Colors.white,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFA68FFF), // Buton yazıları
+                foregroundColor: const Color(0xFFA68FFF),
               ),
             ),
           ),
@@ -136,11 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-    // 2. Eğer kullanıcı bir saat seçtiyse işlem yap
     if (picked != null) {
       setState(() => _notificationTime = picked);
 
-      // Kullanıcıya işlemin başladığını hissettir
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -150,15 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       try {
-        // 🔥 KRİTİK NOKTA: Servisi çağırıyoruz
         await NotificationService().scheduleDailyNotification(
-          id: widget.chainId.hashCode, // Her zincir için benzersiz ID
+          id: widget.chainId.hashCode,
           title: "Zinciri Kırma! 🔥",
           body: "${widget.chainName} hedefini tamamlama vakti!",
           time: picked,
         );
 
-        // Başarılı olursa Yeşil Mesaj göster
         if (!mounted) return;
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +171,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       } catch (e) {
-        // Hata olursa Kırmızı Mesaj göster
         print("PickTime Hatası: $e");
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -188,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- ZİNCİR HALKASI GÖRÜNÜMÜ ---
   Widget _buildChainNode(
       String dayNum, bool isDone, bool isToday, bool isLast) {
-    return Container(
+    return SizedBox(
       width: 60,
       child: Stack(
         alignment: Alignment.center,
@@ -238,11 +236,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🔥 GÜNCELLENMİŞ AVATAR VE DÜRTME BUTONU
+  // --- ÜYE AVATARI VE DÜRTME ---
   Widget _buildMemberAvatar(
       String memberId, bool isCompleted, String chainId, String chainName) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    // Kendimizi dürtmeyelim :)
     final isMe = memberId == currentUserId;
 
     return FutureBuilder<DocumentSnapshot>(
@@ -260,13 +257,12 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Stack(
                 children: [
-                  // 1. AVATAR (Kendisi)
+                  // AVATAR
                   Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                          // Yapıldıysa YEŞİL, Yapılmadıysa KIRMIZIMSI
                           color: isCompleted
                               ? Colors.greenAccent
                               : Colors.redAccent.withOpacity(0.6),
@@ -287,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // 2. DÜRTME BUTONU (Sadece yapılmadıysa ve başkasıysa göster)
+                  // DÜRTME BUTONU
                   if (!isCompleted && !isMe)
                     Positioned(
                       bottom: 0,
@@ -337,6 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- ALT MENÜ ---
   Widget _buildBottomBar(BuildContext context, ChainModel chain) {
     return Container(
       height: 80,
@@ -361,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (_) => const ChainTimerScreen(),
                 ),
               );
-            }, // Fonksiyon burada bitmeli
+            },
             child: Container(
               width: 55,
               height: 55,
@@ -378,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: const Icon(Icons.timer, color: Colors.white, size: 28),
             ),
-          ), // GestureDetector burada bitmeli
+          ),
           IconButton(
             onPressed: () => Navigator.push(
               context,
@@ -459,12 +456,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SafeArea(
                   child: SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 1. ZİNCİR
+                        // 1. TAKVİM
                         SizedBox(
                           height: 60,
                           child: ListView.builder(
@@ -476,27 +473,27 @@ class _HomeScreenState extends State<HomeScreen> {
                               final dayNum = DateFormat('d').format(date);
                               final isToday = index == 3;
                               final isFuture = index > 3;
-          
+
                               bool isDone = false;
                               if (isToday)
                                 isDone = isCompletedToday;
                               else if (!isFuture &&
-                                  index >= (3 - chain.streakCount)) isDone = true;
-          
+                                  index >= (3 - chain.streakCount))
+                                isDone = true;
+
                               return _buildChainNode(
                                   dayNum, isDone, isToday, index == 6);
                             },
                           ),
                         ),
-          
+
                         const SizedBox(height: 30),
-          
-                        // 2. 🔥 AKSİYON BUTONU (GÜNCELLENMİŞ TASARIM)
+
+                        // 2. AKSİYON BUTONU
                         GestureDetector(
-                          // Yapıldıysa Tıklanmasın, Kırıksa Tamir, Değilse Check-in
                           onTap: (isBroken || !isCompletedToday)
                               ? () => _handleAction(chain)
-                              : null, // Sadece hem aktif hem de yapıldıysa kilitli kalır.
+                              : null,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: BackdropFilter(
@@ -511,15 +508,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    // BUTON
                                     AnimatedContainer(
-                                      duration: const Duration(milliseconds: 300),
+                                      duration:
+                                          const Duration(milliseconds: 300),
                                       width: 55,
                                       height: 55,
                                       decoration: BoxDecoration(
-                                        // 🔥 YAPILDIYSA: YEŞİL
-                                        // 🔥 KIRIKSA: KIRMIZI
-                                        // 🔥 YAPILMADIYSA: ŞEFFAF
                                         color: isBroken
                                             ? Colors.red
                                             : (isCompletedToday
@@ -527,13 +521,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 : Colors.transparent),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                            // Çerçeve Rengi
                                             color: isBroken
                                                 ? Colors.redAccent
                                                 : (isCompletedToday
                                                     ? Colors.green
-                                                    : Colors
-                                                        .white54), // Beyaz/Gri Çerçeve
+                                                    : Colors.white54),
                                             width: 2),
                                         boxShadow: isCompletedToday
                                             ? [
@@ -549,18 +541,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ? const Icon(Icons.build,
                                                 color: Colors.white)
                                             : (isCompletedToday
-                                                // 🔥 TİK İKONU ARKA PLAN RENGİNDE (DELİK GİBİ GÖRÜNSÜN)
                                                 ? const Icon(Icons.check,
                                                     color: Color(0xFF0A0E25),
                                                     size: 30,
                                                     weight: 800)
-                                                : null), // YAPILMADIYSA BOŞ
+                                                : null),
                                       ),
                                     ),
-          
                                     const SizedBox(width: 16),
-          
-                                    // YAZILAR
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -583,8 +571,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     : chain.name),
                                             style: TextStyle(
                                               color: isCompletedToday
-                                                  ? Colors.white.withOpacity(
-                                                      0.5) // Yapıldıysa sönük
+                                                  ? Colors.white
+                                                      .withOpacity(0.5)
                                                   : Colors.white,
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -605,10 +593,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-          
+
                         const SizedBox(height: 30),
-          
-                        // 3. ÜYELER
+
+                        // 3. TAKIM
                         const Text("Team Status",
                             style: TextStyle(
                                 color: Colors.white,
@@ -622,17 +610,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: chain.members.length,
                             itemBuilder: (context, index) {
                               final memberId = chain.members[index];
-                              final isMemCompleted =
-                                  chain.membersCompletedToday.contains(memberId);
-                              return _buildMemberAvatar(
-                                  memberId, isMemCompleted, chain.id, chain.name);
+                              final isMemCompleted = chain.membersCompletedToday
+                                  .contains(memberId);
+                              return _buildMemberAvatar(memberId,
+                                  isMemCompleted, chain.id, chain.name);
                             },
                           ),
                         ),
-          
+
                         const SizedBox(height: 20),
-          
-                        // 4. DESCRIPTION
+
+                        // 4. AÇIKLAMA
                         GestureDetector(
                           onTap: () => Navigator.push(
                               context,
@@ -680,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-          
+
                         const SizedBox(height: 50),
                       ],
                     ),

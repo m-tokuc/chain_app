@@ -40,7 +40,7 @@ class ProfileScreen extends StatelessWidget {
                 const Icon(Icons.home_filled, color: Colors.white70, size: 32),
           ),
 
-          // 2. TIMER: Profilde pasif (Hangi zincir olduğu belli değil)
+          // 2. TIMER: Profilde pasif
           Container(
             width: 55,
             height: 55,
@@ -109,13 +109,14 @@ class ProfileScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         extendBodyBehindAppBar: true,
-      
+
         // 🔥 ALT BAR EKLENDİ
         bottomNavigationBar: _buildBottomBar(context),
-      
+
         appBar: AppBar(
           title: const Text("Profile",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
@@ -152,7 +153,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-      
+
             // 2. İÇERİK
             SafeArea(
               child: StreamBuilder<DocumentSnapshot>(
@@ -168,10 +169,10 @@ class ProfileScreen extends StatelessWidget {
                   }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                        child:
-                            CircularProgressIndicator(color: Color(0xFFA68FFF)));
+                        child: CircularProgressIndicator(
+                            color: Color(0xFFA68FFF)));
                   }
-      
+
                   if (!snapshot.hasData || !snapshot.data!.exists) {
                     return Center(
                       child: _buildGlassContainer(
@@ -183,8 +184,8 @@ class ProfileScreen extends StatelessWidget {
                                 color: Color(0xFFA68FFF), size: 50),
                             const SizedBox(height: 16),
                             const Text("Profile not found!",
-                                style:
-                                    TextStyle(color: Colors.white, fontSize: 18)),
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 18)),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
@@ -210,14 +211,14 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     );
                   }
-      
+
                   UserModel user = UserModel.fromFirestore(snapshot.data!);
                   int currentLevel = user.level;
                   int xpForNext = user.xpRequiredForNextLevel;
                   int xpStart = user.xpStartCurrentLevel;
                   double progress = (user.xp - xpStart) / (xpForNext - xpStart);
                   if (progress.isNaN || progress.isInfinite) progress = 0;
-      
+
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -232,8 +233,8 @@ class ProfileScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color:
-                                        const Color(0xFFA68FFF).withOpacity(0.5),
+                                    color: const Color(0xFFA68FFF)
+                                        .withOpacity(0.5),
                                     width: 4),
                                 boxShadow: [
                                   BoxShadow(
@@ -255,11 +256,12 @@ class ProfileScreen extends StatelessWidget {
                                       builder: (_) =>
                                           EditProfileScreen(user: user))),
                               backgroundColor: const Color(0xFFA68FFF),
-                              child: const Icon(Icons.edit, color: Colors.white),
+                              child:
+                                  const Icon(Icons.edit, color: Colors.white),
                             ),
                           ],
                         ),
-      
+
                         const SizedBox(height: 16),
                         Text(user.name,
                             style: const TextStyle(
@@ -267,7 +269,7 @@ class ProfileScreen extends StatelessWidget {
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-      
+
                         // ROZET
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -276,7 +278,8 @@ class ProfileScreen extends StatelessWidget {
                             color: const Color(0xFFA68FFF).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: const Color(0xFFA68FFF).withOpacity(0.5)),
+                                color:
+                                    const Color(0xFFA68FFF).withOpacity(0.5)),
                           ),
                           child: Text(user.badge,
                               style: const TextStyle(
@@ -284,16 +287,17 @@ class ProfileScreen extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16)),
                         ),
-      
+
                         const SizedBox(height: 40),
-      
+
                         // LEVEL PROGRESS
                         _buildGlassContainer(
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text("Level $currentLevel",
                                       style: const TextStyle(
@@ -302,7 +306,8 @@ class ProfileScreen extends StatelessWidget {
                                           fontWeight: FontWeight.bold)),
                                   Text("${user.xp} / $xpForNext XP",
                                       style: TextStyle(
-                                          color: Colors.white.withOpacity(0.6))),
+                                          color:
+                                              Colors.white.withOpacity(0.6))),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -310,7 +315,8 @@ class ProfileScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                                 child: LinearProgressIndicator(
                                   value: progress,
-                                  backgroundColor: Colors.white.withOpacity(0.1),
+                                  backgroundColor:
+                                      Colors.white.withOpacity(0.1),
                                   color: const Color(0xFFA68FFF),
                                   minHeight: 12,
                                 ),
@@ -323,22 +329,35 @@ class ProfileScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-      
+
                         const SizedBox(height: 24),
-      
-                        // ISTATISTIKLER
+
+                        // ISTATISTIKLER (GÜNCELLENMİŞ KISIM)
                         Row(
                           children: [
+                            // Total XP
                             Expanded(
                                 child: _buildGlassStatCard(
                                     "Total XP", "${user.xp} ✨")),
                             const SizedBox(width: 15),
+
+                            // Chain Rank - ARTIK CANLI VERİ
                             Expanded(
-                                child:
-                                    _buildGlassStatCard("Chain Rank", "#142 🏆")),
+                              child: FutureBuilder<int>(
+                                future: FirestoreService().getUserRank(user.xp),
+                                builder: (context, rankSnapshot) {
+                                  String rankText = "...";
+                                  if (rankSnapshot.hasData) {
+                                    rankText = "#${rankSnapshot.data} 🏆";
+                                  }
+                                  return _buildGlassStatCard(
+                                      "Chain Rank", rankText);
+                                },
+                              ),
+                            ),
                           ],
                         ),
-      
+
                         const SizedBox(height: 30),
                       ],
                     ),

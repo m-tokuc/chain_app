@@ -1,4 +1,4 @@
-import 'package:chainapp/services/Timer_service.dart';
+import 'package:chainapp/services/Timer_service.dart'; // Dosya ismin buysa kalsın, küçük harfse (timer_service.dart) düzelt.
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
-        // Koyu tema tercihi (isteğe bağlı)
+        // Koyu tema tercihi
         scaffoldBackgroundColor: const Color(0xFF0A0E25),
       ),
       home: const AuthGate(),
@@ -60,8 +60,6 @@ class AuthGate extends StatelessWidget {
 
         // 2. Giriş Yapılmışsa
         if (snapshot.hasData && snapshot.data != null) {
-          // 🔥 DÜZELTME: init fonksiyonunu doğrudan burada çağırmak yerine
-          // bu işi yapacak olan 'NotificationInitWrapper' widget'ına gönderiyoruz.
           return NotificationInitWrapper(
             userId: snapshot.data!.uid,
             child: const ChainHubScreen(),
@@ -75,7 +73,7 @@ class AuthGate extends StatelessWidget {
   }
 }
 
-// 🔥 YENİ WIDGET: Servisi Sadece 1 Kez Başlatır
+// 🔥 Servisi Sadece 1 Kez Başlatan Ara Widget
 class NotificationInitWrapper extends StatefulWidget {
   final String userId;
   final Widget child;
@@ -87,25 +85,27 @@ class NotificationInitWrapper extends StatefulWidget {
   });
 
   @override
-  State<NotificationInitWrapper> createState() => _NotificationInitWrapperState();
+  State<NotificationInitWrapper> createState() =>
+      _NotificationInitWrapperState();
 }
 
 class _NotificationInitWrapperState extends State<NotificationInitWrapper> {
   @override
   void initState() {
     super.initState();
-    // ✅ Sayfa oluştuğunda SADECE BİR KEZ çalışır.
     _initializeService();
   }
 
   Future<void> _initializeService() async {
     print("🚀 Main: Bildirim servisi başlatılıyor... UserID: ${widget.userId}");
-    await NotificationService().init(widget.userId);
+
+    // ✅ DÜZELTİLEN KISIM BURASI:
+    // init fonksiyonu isimlendirilmiş parametre beklediği için "userId:" yazdık.
+    await NotificationService().init(userId: widget.userId);
   }
 
   @override
   Widget build(BuildContext context) {
-    // İşlem bitse de bitmese de kullanıcıyı bekletmeden ana ekranı gösterir
     return widget.child;
   }
 }

@@ -182,4 +182,25 @@ class FirestoreService {
       rethrow; // Hatayı ekrana basmak için fırlatıyoruz
     }
   }
+
+  // --- 6. SIRALAMA HESAPLAMA (RANK) ---
+  // Mantık: Benden daha yüksek XP'ye sahip kaç kişi var? + 1
+  Future<int> getUserRank(int myXp) async {
+    try {
+      // XP'si benim XP'mden büyük olan kullanıcıları say
+      AggregateQuerySnapshot query = await _db
+          .collection('users')
+          .where('xp', isGreaterThan: myXp)
+          .count()
+          .get();
+
+      int count = query.count ?? 0;
+
+      // Sıralamam = Benden iyilerin sayısı + 1
+      return count + 1;
+    } catch (e) {
+      print("Sıralama hatası: $e");
+      return 0; // Hata olursa 0 dönsün
+    }
+  }
 }

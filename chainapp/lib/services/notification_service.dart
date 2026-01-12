@@ -11,35 +11,54 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
-  // 🔥 Sabit Kanal ID (Kanalı sıfırlamak için v4 yaptık)
+  // 🔥 Sabit Kanal ID
   static const String channelId = 'chain_daily_reminder_v4';
+  static const String channelName = 'Günlük Hatırlatıcılar';
 
-  Future<void> init(String userId) async {
-    tz.initializeTimeZones();
-    final String currentTimeZone = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(currentTimeZone));
+  // init fonksiyonunda userId'yi opsiyonel (?) yaptık.
+  // Çünkü main.dart'ta uygulama açılırken user henüz null olabilir.
+  Future<void> init({String? userId}) async {
+    // 1. Zaman Dilimi Ayarları
+    try {
+      tz.initializeTimeZones();
+      final String currentTimeZone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(currentTimeZone));
+    } catch (e) {
+      print("Zaman dilimi hatası: $e");
+      // Hata olursa varsayılan olarak UTC veya bilinen bir yer ayarlanabilir
+      // tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+    }
 
-    // 1. ADIM: Android Kanalını Sisteme Kaydet (Sende bu eksik)
+    // 2. Android Kanalını Oluştur
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       channelId,
-      'Hatırlatıcılar',
+      channelName,
       description: 'Zinciri kırmamanız için günlük hatırlatıcılar.',
-      importance: Importance.max, // Bildirimin yukarıdan düşmesi için ŞART
+      importance: Importance.max,
       playSound: true,
       enableVibration: true,
     );
 
     await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 2. ADIM: Başlatma Ayarları
+    // 3. Android 13+ İçin Bildirim İzni İste
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
+    // 4. Başlatma Ayarları
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // iOS Ayarları
     final DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
       requestSoundPermission: true,
@@ -53,36 +72,54 @@ class NotificationService {
         iOS: initializationSettingsDarwin,
       ),
       onDidReceiveNotificationResponse: (details) {
-        print("Bildirime tıklandı");
+        print("Bildirime tıklandı: ${details.payload}");
       },
     );
 
+    // 5. Alarm İzni (Android 12+)
     await _requestExactAlarmPermission();
-    
-    // FCM İzinleri
-    NotificationSettings settings = await _fcm.requestPermission(alert: true, badge: true, sound: true);
+
+    // 6. FCM İzinleri ve Token Kaydı
+    NotificationSettings settings = await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      await _saveTokenToFirestore(userId);
+      print('FCM İzni verildi: ${settings.authorizationStatus}');
+      // Eğer userId geldiyse token'ı kaydet
+      if (userId != null) {
+        await _saveTokenToFirestore(userId);
+      }
     }
   }
 
   Future<void> _requestExactAlarmPermission() async {
-    final androidImplementation = flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidImplementation =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
     if (androidImplementation != null) {
       await androidImplementation.requestExactAlarmsPermission();
     }
   }
 
+  // Token kaydetme fonksiyonu (Login olduktan sonra çağrılabilir)
   Future<void> _saveTokenToFirestore(String userId) async {
-    String? token = await _fcm.getToken();
-    if (token != null) {
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'fcmToken': token,
-      }, SetOptions(merge: true));
+    try {
+      String? token = await _fcm.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
+          'fcmToken': token,
+        }, SetOptions(merge: true));
+        print("FCM Token kaydedildi.");
+      }
+    } catch (e) {
+      print("Token kayıt hatası: $e");
     }
   }
 
+  // 🔥 GÜNLÜK HATIRLATICI KURMA
   Future<void> scheduleDailyNotification({
     required int id,
     required String title,
@@ -97,20 +134,23 @@ class NotificationService {
         _nextInstanceOfTime(time.hour, time.minute),
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            channelId, // Yukarıdaki kanal ID ile birebir aynı olmalı
-            'Günlük Hatırlatıcı',
+            channelId, // Yukarıdaki ID ile aynı olmalı
+            channelName,
             channelDescription: 'Zinciri kırma hatırlatıcısı',
             importance: Importance.max,
             priority: Priority.high,
-            fullScreenIntent: true, // Bazı cihazlarda şart
+            fullScreenIntent: true,
+            icon: '@mipmap/ic_launcher',
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // 🔥 Android 12+ için kritik
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrar et
       );
-      print("✅ Bildirim kuruldu (ID: $id) - Zaman: ${time.hour}:${time.minute}");
+      print(
+          "✅ Alarm kuruldu: ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}");
     } catch (e) {
       print("❌ Bildirim kurulum hatası: $e");
     }
@@ -118,27 +158,30 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    
-    // Eğer seçilen saat geçmişse yarına kur
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
   }
-  Future<void> showImmediateNotification() async {
-  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-    'test_channel',
-    'Test Notification',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
 
-  await flutterLocalNotificationsPlugin.show(
-    999,
-    "Test Başlığı",
-    "Bu bildirim hemen gelmeli!",
-    const NotificationDetails(android: androidDetails),
-  );
-}
+  // TEST BİLDİRİMİ (Kanal ID düzeltildi)
+  Future<void> showImmediateNotification() async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      channelId, // 🔥 Düzeltildi: 'test_channel' yerine gerçek kanal ID
+      channelName,
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      999,
+      "Test Başlığı",
+      "Bu bildirim çalışıyorsa sistem harika işliyor! 🚀",
+      const NotificationDetails(android: androidDetails),
+    );
+  }
 }
