@@ -1,10 +1,11 @@
+import 'dart:async'; // StreamSubscription için gerekli
 import 'dart:ui'; // Glassmorphism efektleri için
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Servisler ve Modeller (Dosya yollarının doğru olduğundan emin ol)
+// Servisler ve Modeller
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../models/chain_model.dart';
@@ -36,6 +37,71 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Bildirim saati
   TimeOfDay? _notificationTime;
+
+  // 🔥 CANLI BİLDİRİM DİNLEYİCİSİ İÇİN DEĞİŞKEN
+  StreamSubscription? _nudgeSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔥 Uygulama açılınca gelen dürtmeleri dinlemeye başla
+    _listenForNudges();
+  }
+
+  @override
+  void dispose() {
+    // 🔥 Sayfadan çıkınca dinlemeyi durdur (Performans için)
+    _nudgeSubscription?.cancel();
+    super.dispose();
+  }
+
+  // 🔥 CANLI DÜRTME DİNLEYİCİSİ (UYGULAMA AÇIKKEN ÇALIŞIR)
+  void _listenForNudges() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return;
+
+    _nudgeSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false) // Sadece okunmamışları getir
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>;
+          final msg = data['message'] ?? "Seni dürttü!";
+
+          // Ekranda mesajı göster
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.waving_hand, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text("Biri seni dürttü: \"$msg\"")),
+                  ],
+                ),
+                backgroundColor: const Color(0xFFA68FFF), // Mor renk
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: "TAMAM",
+                  textColor: Colors.white,
+                  onPressed: () {
+                    change.doc.reference.update({'isRead': true});
+                  },
+                ),
+              ),
+            );
+            // Görüldü işaretle
+            change.doc.reference.update({'isRead': true});
+          }
+        }
+      }
+    });
+  }
 
   // --- ANA AKSİYON (CHECK-IN / REPAIR) ---
   Future<void> _handleAction(ChainModel chain) async {
@@ -183,6 +249,106 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // 🔥 MESAJ YAZMA PENCERESİ (YENİ EKLENDİ)
+  void _showNudgeDialog(
+      String memberId, String userName, String chainId, String chainName) {
+    final TextEditingController messageController = TextEditingController();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1F3D78),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.waving_hand, color: Colors.orangeAccent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "$userName kişisini dürt",
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Ona kısa bir motivasyon mesajı gönder! 🚀",
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: messageController,
+              style: const TextStyle(color: Colors.white),
+              maxLength: 50,
+              decoration: InputDecoration(
+                hintText: "Örn: Hadi, yapabilirsin!",
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                filled: true,
+                fillColor: Colors.black26,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                counterStyle: const TextStyle(color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child:
+                const Text("Vazgeç", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFA68FFF),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              String msg = messageController.text.trim();
+              if (msg.isEmpty) msg = "Seni bekliyoruz! 👋";
+
+              try {
+                // 🔥 Servisi mesaj parametresiyle çağırıyoruz
+                await FirestoreService().sendNudge(
+                    currentUserId!, memberId, chainId, chainName, msg);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("$userName dürtüldü: \"$msg\""),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                print("Dürtme hatası: $e");
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Hata: ${e.toString()}"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text("GÖNDER", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- ZİNCİR HALKASI GÖRÜNÜMÜ ---
   Widget _buildChainNode(
       String dayNum, bool isDone, bool isToday, bool isLast) {
@@ -289,27 +455,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: () async {
-                          try {
-                            await FirestoreService().sendNudge(
-                                currentUserId!, memberId, chainId, chainName);
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("$userName dürtüldü! 👋"),
-                                backgroundColor: Colors.orangeAccent,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    e.toString().replaceAll("Exception: ", "")),
-                                backgroundColor: Colors.grey,
-                              ),
-                            );
-                          }
+                        onTap: () {
+                          // 🔥 PENCERE AÇ
+                          _showNudgeDialog(
+                              memberId, userName, chainId, chainName);
                         },
                         child: Container(
                           padding: const EdgeInsets.all(4),
@@ -596,7 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 30),
 
-                        // 3. TAKIM
+                        // 3. TAKIM DURUMU
                         const Text("Team Status",
                             style: TextStyle(
                                 color: Colors.white,
@@ -620,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 20),
 
-                        // 4. AÇIKLAMA
+                        // 4. AÇIKLAMA KARTI
                         GestureDetector(
                           onTap: () => Navigator.push(
                               context,
