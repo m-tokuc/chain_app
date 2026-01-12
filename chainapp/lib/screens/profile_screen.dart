@@ -233,9 +233,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   // --- BOTTOM BAR (NAVIGATION) ---
+// --- BOTTOM BAR (NAVIGATION) ---
   Widget _buildBottomBar(BuildContext context) {
     return Container(
-      height: 80,
+      height: 85,
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
@@ -243,38 +244,62 @@ class ProfileScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // 1. HOME: Navigates back to the SPECIFIC HomeScreen
+          // 1. SOL: TIMER Butonu
           IconButton(
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => HomeScreen(
-                  chainId: selectedChainId,
-                  chainName: selectedChainName,
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChainTimerScreen(
+                    chainId: selectedChainId,
+                    chainName: selectedChainName,
+                  ),
                 ),
-              ),
-            ),
-            icon:
-                const Icon(Icons.home_filled, color: Colors.white70, size: 32),
+              );
+            },
+            icon: const Icon(Icons.timer, color: Colors.white70, size: 30),
           ),
 
-          // 2. TIMER: Navigates to the TimerScreen
-          IconButton(
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChainTimerScreen(
-                  chainId: selectedChainId,
-                  chainName: selectedChainName,
+          // 2. ORTA: HOME Butonu (Daha büyük ve öne çıkan tasarım)
+          GestureDetector(
+            onTap: () {
+              // Eğer zaten HomeScreen'de olsaydık (bu sayfa Profile olduğu için değiliz) 
+              // direkt yönlendiriyoruz ve stack'i temizliyoruz.
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HomeScreen(
+                    chainId: selectedChainId,
+                    chainName: selectedChainName,
+                  ),
                 ),
+                (route) => false,
+              );
+            },
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F3D78),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 10,
+                  )
+                ],
+                border: Border.all(color: Colors.white24, width: 2),
               ),
+              child: const Icon(Icons.home_filled, color: Colors.white, size: 32),
             ),
-            icon: const Icon(Icons.timer, color: Colors.white70, size: 32),
           ),
 
-          // 3. PROFILE: Current Page (Active)
+          // 3. SAĞ: PROFILE Butonu (Aktif Sayfa)
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              // Zaten Profile sayfasındayız, hiçbir şey yapma.
+            },
             icon: const Icon(Icons.person, color: Color(0xFFA68FFF), size: 32),
           ),
         ],

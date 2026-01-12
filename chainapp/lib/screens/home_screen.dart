@@ -414,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomBar(BuildContext context, ChainModel chain) {
     return Container(
-      height: 80,
+      height: 85, // Biraz daha pay bıraktık
       decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           border:
@@ -422,37 +422,75 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          IconButton(
-              onPressed: () => Navigator.pushReplacement(context,
-                  MaterialPageRoute(builder: (_) => const ChainHubScreen())),
-              icon: const Icon(Icons.home_filled,
-                  color: Colors.white70, size: 32)),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => ChainTimerScreen(
-                          chainId: widget.chainId,
-                          chainName: widget.chainName)));
-            },
-            child: Container(
-                width: 55,
-                height: 55,
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1F3D78),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24)),
-                child: const Icon(Icons.timer, color: Colors.white, size: 28)),
-          ),
+          // 1. SOL: Timer Butonu (Daha sade icon haline getirildi)
           IconButton(
             onPressed: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => ProfileScreen(
-                          selectedChainId: widget.chainId,
-                          selectedChainName: widget.chainName)));
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChainTimerScreen(
+                    chainId: widget.chainId,
+                    chainName: widget.chainName,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.timer, color: Colors.white70, size: 30),
+          ),
+
+          // 2. ORTA: Home Butonu (Daha büyük ve öne çıkan tasarım)
+          GestureDetector(
+            onTap: () {
+              // 1. KONTROL: Eğer mevcut widget HomeScreen ise hiçbir şey yapma
+              // (Bu kontrol, metodun çağrıldığı yerdeki context'in hangi sayfaya ait olduğuna bakar)
+              if (context.findAncestorWidgetOfExactType<HomeScreen>() != null) {
+                return;
+              }
+
+              // 2. NAVİGASYON: Eğer HomeScreen'de değilsek yönlendir
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HomeScreen(
+                    chainId: widget.chainId,
+                    chainName: widget.chainName,
+                  ),
+                ),
+                (route) => false,
+              );
+            },
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F3D78),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 10,
+                  )
+                ],
+                border: Border.all(color: Colors.white24, width: 2),
+              ),
+              child:
+                  const Icon(Icons.home_filled, color: Colors.white, size: 32),
+            ),
+          ),
+
+          // 3. SAĞ: Profile Butonu
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(
+                    selectedChainId: widget.chainId,
+                    selectedChainName: widget.chainName,
+                  ),
+                ),
+              );
             },
             icon: const Icon(Icons.person, color: Colors.white70, size: 32),
           ),
@@ -517,7 +555,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 elevation: 0,
                 leading: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context)),
+                    onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ChainHubScreen()),
+                        )),
                 actions: [
                   IconButton(
                       icon: Icon(Icons.notifications_active,
