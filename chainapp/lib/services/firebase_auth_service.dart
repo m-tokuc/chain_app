@@ -9,36 +9,35 @@ class FirebaseAuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // --- REGISTER (EMAIL) ---
-// firebase_auth_service.dart içindeki register metodu
+  Future<User?> register(String email, String password) async {
+    try {
+      UserCredential credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-Future<User?> register(String email, String password) async {
-  try {
-    UserCredential credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    
-    if (credential.user != null) {
-      await _saveUserToFirestore(credential.user!);
-    }
-    return credential.user;
-  } catch (e) {
-    // 🔥 KRİTİK DÜZELTME:
-    // Eğer Pigeon hatası alıyorsak ama Firebase arka planda kullanıcıyı oluşturduysa
-    if (e.toString().contains('PigeonUserDetails') || _auth.currentUser != null) {
-      print("İç hata oluştu ama kullanıcı oluşturuldu, devam ediliyor...");
-      
-      // Kullanıcı oluşmuşsa Firestore kaydını manuel tetikle
-      if (_auth.currentUser != null) {
-        await _saveUserToFirestore(_auth.currentUser!);
+      if (credential.user != null) {
+        await _saveUserToFirestore(credential.user!);
       }
-      return _auth.currentUser;
+      return credential.user;
+    } catch (e) {
+      // 🔥 KRİTİK DÜZELTME:
+      // Eğer Pigeon hatası alıyorsak ama Firebase arka planda kullanıcıyı oluşturduysa
+      if (e.toString().contains('PigeonUserDetails') ||
+          _auth.currentUser != null) {
+        print("İç hata oluştu ama kullanıcı oluşturuldu, devam ediliyor...");
+
+        // Kullanıcı oluşmuşsa Firestore kaydını manuel tetikle
+        if (_auth.currentUser != null) {
+          await _saveUserToFirestore(_auth.currentUser!);
+        }
+        return _auth.currentUser;
+      }
+
+      print("Register Service Error: $e");
+      rethrow;
     }
-    
-    print("Register Service Error: $e");
-    rethrow;
   }
-}
 
   // --- LOGIN (EMAIL) ---
   Future<User?> login(String email, String password) async {
@@ -102,6 +101,7 @@ Future<User?> register(String email, String password) async {
       final userRef = _firestore.collection('users').doc(user.uid);
 
       // Eğer kullanıcı zaten varsa üzerine yazma (merge: true)
+      // 🔥 Yeni Rozet ve XP alanları modele göre eklendi
       await userRef.set({
         'uid': user.uid,
         'email': user.email,
@@ -109,7 +109,9 @@ Future<User?> register(String email, String password) async {
             user.email!.split('@')[0], // İsim yoksa mailin başını al
         'avatarSeed': user.uid, // Avatar için seed
         'xp': 0,
-        'badge': 'Rookie',
+        'hasChangedName': false, // Yeni eklendi
+        'hasChangedAvatar': false, // Yeni eklendi
+        'earnedBadges': ['Newbie'], // Rozet listesi başlatıldı
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

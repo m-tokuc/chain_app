@@ -1,17 +1,92 @@
-import 'dart:ui'; // Glassmorphism için
+import 'dart:ui'; // For Glassmorphism effects
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// Models and Services
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
+
+// Other Screens
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
-import 'chain_hub_screen.dart'; // Listeye dönüş için
-import 'settings_screen.dart'; // Ayarlar ekranı için
+import 'home_screen.dart';
+import 'settings_screen.dart';
+import 'timer_screen.dart';
+import 'chain_hub_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  // 🔥 Parameters to remember the specific chain context
+  final String selectedChainId;
+  final String selectedChainName;
 
+  const ProfileScreen({
+    super.key,
+    required this.selectedChainId,
+    required this.selectedChainName,
+  });
+
+  // BADGE DEFINITIONS (ENGLISH)
+  static const List<Map<String, dynamic>> allBadges = [
+    {
+      'id': 'Newbie',
+      'name': 'Newbie',
+      'icon': '🥚',
+      'desc': 'You joined the chain world!',
+      'howTo': 'Earned by registering an account.',
+      'xp': 10
+    },
+    {
+      'id': '3Day',
+      'name': '3-Day Spark',
+      'icon': '✨',
+      'desc': 'Discipline is starting to ignite.',
+      'howTo': 'Complete a 3-day streak without breaking.',
+      'xp': 20
+    },
+    {
+      'id': 'Lvl5',
+      'name': 'Novice Chain',
+      'icon': '⛓️',
+      'desc': 'You are no longer a rookie.',
+      'howTo': 'Reach Level 5 to unlock this badge.',
+      'xp': 50
+    },
+    {
+      'id': '7Day',
+      'name': 'Weekly Warrior',
+      'icon': '🛡️',
+      'desc': 'A full week! Nobody can stop you.',
+      'howTo': 'Complete a 7-day streak without breaking.',
+      'xp': 100
+    },
+    {
+      'id': 'Lvl10',
+      'name': 'Consistent Link',
+      'icon': '🔗',
+      'desc': 'Mastering the art of habits.',
+      'howTo': 'Reach Level 10 to unlock this badge.',
+      'xp': 150
+    },
+    {
+      'id': 'Lvl25',
+      'name': 'Elite 25',
+      'icon': '🔟',
+      'desc': 'You are approaching legend status.',
+      'howTo': 'Reach Level 25 to unlock this badge.',
+      'xp': 300
+    },
+    {
+      'id': 'Legend',
+      'name': 'The Legend',
+      'icon': '🔥',
+      'desc': 'Peak discipline! You are an inspiration.',
+      'howTo': 'Reach Level 50 to unlock this badge.',
+      'xp': 1000
+    },
+  ];
+
+  // --- LOGOUT LOGIC ---
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
@@ -21,7 +96,143 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- ALT BAR (NAVIGATION) ---
+  // --- BADGE DETAIL POP-UP ---
+  void _showBadgeDetail(
+      BuildContext context, Map<String, dynamic> badge, bool isEarned) {
+    showDialog(
+      context: context,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1E1B4B).withOpacity(0.9),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(badge['icon'], style: const TextStyle(fontSize: 60)),
+              const SizedBox(height: 16),
+              Text(badge['name'],
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Text(badge['desc'],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 14)),
+              const SizedBox(height: 8),
+              Text("Requirement: ${badge['howTo']}",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic)),
+              const SizedBox(height: 24),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isEarned
+                      ? Colors.green.withOpacity(0.2)
+                      : Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: isEarned ? Colors.greenAccent : Colors.white24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(isEarned ? Icons.check_circle : Icons.lock,
+                        color: isEarned ? Colors.greenAccent : Colors.white38,
+                        size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEarned ? "Earned (+${badge['xp']} XP)" : "Locked",
+                      style: TextStyle(
+                          color: isEarned ? Colors.greenAccent : Colors.white38,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- BADGE GALLERY POP-UP ---
+  void _showBadgeGallery(BuildContext context, UserModel user) {
+    showDialog(
+      context: context,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1E1B4B).withOpacity(0.95),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text("Badge Collection",
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.builder(
+              shrinkWrap: true,
+              itemCount: allBadges.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 20,
+                crossAxisSpacing: 20,
+                childAspectRatio: 0.75,
+              ),
+              itemBuilder: (context, index) {
+                final b = allBadges[index];
+                bool isEarned = user.earnedBadges.contains(b['id']);
+                return GestureDetector(
+                  onTap: () => _showBadgeDetail(context, b, isEarned),
+                  child: Column(
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Opacity(
+                            opacity: isEarned ? 1.0 : 0.2,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  shape: BoxShape.circle),
+                              child: Text(b['icon'],
+                                  style: const TextStyle(fontSize: 28)),
+                            ),
+                          ),
+                          if (!isEarned)
+                            Icon(Icons.lock,
+                                color: Colors.white.withOpacity(0.4), size: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(b['name'],
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: TextStyle(
+                              color: isEarned ? Colors.white : Colors.white24,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- BOTTOM BAR (NAVIGATION) ---
   Widget _buildBottomBar(BuildContext context) {
     return Container(
       height: 80,
@@ -32,28 +243,38 @@ class ProfileScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // 1. HOME: Listeye (Hub) Götürür
+          // 1. HOME: Navigates back to the SPECIFIC HomeScreen
           IconButton(
-            onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const ChainHubScreen())),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HomeScreen(
+                  chainId: selectedChainId,
+                  chainName: selectedChainName,
+                ),
+              ),
+            ),
             icon:
                 const Icon(Icons.home_filled, color: Colors.white70, size: 32),
           ),
 
-          // 2. TIMER: Profilde pasif
-          Container(
-            width: 55,
-            height: 55,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05), // Sönük
-              shape: BoxShape.circle,
+          // 2. TIMER: Navigates to the TimerScreen
+          IconButton(
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChainTimerScreen(
+                  chainId: selectedChainId,
+                  chainName: selectedChainName,
+                ),
+              ),
             ),
-            child: const Icon(Icons.timer, color: Colors.white24, size: 28),
+            icon: const Icon(Icons.timer, color: Colors.white70, size: 32),
           ),
 
-          // 3. PROFILE: Aktif Sayfa
+          // 3. PROFILE: Current Page (Active)
           IconButton(
-            onPressed: () {}, // Zaten buradayız
+            onPressed: () {},
             icon: const Icon(Icons.person, color: Color(0xFFA68FFF), size: 32),
           ),
         ],
@@ -61,7 +282,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- CAM KONTEYNER YARDIMCISI ---
+  // --- UI HELPERS ---
   Widget _buildGlassContainer(
       {required Widget child, EdgeInsetsGeometry? padding}) {
     return ClipRRect(
@@ -109,10 +330,7 @@ class ProfileScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         extendBodyBehindAppBar: true,
-
-        // 🔥 ALT BAR EKLENDİ
         bottomNavigationBar: _buildBottomBar(context),
-
         appBar: AppBar(
           title: const Text("Profile",
               style:
@@ -120,33 +338,27 @@ class ProfileScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          // 🔥 SOL ÜST: AYARLAR İKONU
           leading: IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white70),
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            },
-          ),
-          // SAĞ ÜST: ÇIKIŞ YAP
+              icon: const Icon(Icons.settings, color: Colors.white70),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()))),
           actions: [
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent),
-              onPressed: () => _logout(context),
-            ),
+                icon: const Icon(Icons.logout, color: Colors.redAccent),
+                onPressed: () => _logout(context))
           ],
         ),
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. GRADYAN ARKA PLAN
+            // Background Gradient
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF0A0E25), // Uyumlu olması için güncelledim
+                    Color(0xFF0A0E25),
                     Color(0xFF1E1B4B),
                     Color(0xFF312E81)
                   ],
@@ -154,7 +366,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
 
-            // 2. İÇERİK
+            // Content
             SafeArea(
               child: StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
@@ -162,68 +374,24 @@ class ProfileScreen extends StatelessWidget {
                     .doc(uid)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Center(
-                        child: Text("Something went wrong",
-                            style: TextStyle(color: Colors.white)));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting)
                     return const Center(
                         child: CircularProgressIndicator(
                             color: Color(0xFFA68FFF)));
-                  }
-
-                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                    return Center(
-                      child: _buildGlassContainer(
-                        padding: const EdgeInsets.all(30),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.error_outline,
-                                color: Color(0xFFA68FFF), size: 50),
-                            const SizedBox(height: 16),
-                            const Text("Profile not found!",
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 18)),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFA68FFF),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16))),
-                              onPressed: () async {
-                                final currentUser =
-                                    FirebaseAuth.instance.currentUser;
-                                if (currentUser != null) {
-                                  final newUser = UserModel(
-                                      uid: currentUser.uid,
-                                      email: currentUser.email ?? "",
-                                      name: "New Chain User");
-                                  await FirestoreService().createUser(newUser);
-                                }
-                              },
-                              child: const Text("Create Profile",
-                                  style: TextStyle(color: Colors.white)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+                  if (!snapshot.hasData || !snapshot.data!.exists)
+                    return const Center(
+                        child: Text("User data not found",
+                            style: TextStyle(color: Colors.white)));
 
                   UserModel user = UserModel.fromFirestore(snapshot.data!);
-                  int currentLevel = user.level;
-                  int xpForNext = user.xpRequiredForNextLevel;
-                  int xpStart = user.xpStartCurrentLevel;
-                  double progress = (user.xp - xpStart) / (xpForNext - xpStart);
-                  if (progress.isNaN || progress.isInfinite) progress = 0;
+                  double progress = (user.xp - user.xpStartCurrentLevel) /
+                      (user.xpRequiredForNextLevel - user.xpStartCurrentLevel);
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // AVATAR
+                        // Avatar Section
                         Stack(
                           alignment: Alignment.bottomRight,
                           children: [
@@ -236,12 +404,6 @@ class ProfileScreen extends StatelessWidget {
                                     color: const Color(0xFFA68FFF)
                                         .withOpacity(0.5),
                                     width: 4),
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: const Color(0xFFA68FFF)
-                                          .withOpacity(0.3),
-                                      blurRadius: 20)
-                                ],
                                 image: DecorationImage(
                                   image: NetworkImage(
                                       "https://api.dicebear.com/9.x/adventurer/png?seed=${user.avatarSeed}&backgroundColor=b6e3f4"),
@@ -268,29 +430,69 @@ class ProfileScreen extends StatelessWidget {
                                 color: Colors.white,
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
 
-                        // ROZET
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFA68FFF).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color:
-                                    const Color(0xFFA68FFF).withOpacity(0.5)),
+                        // Badges Row
+                        GestureDetector(
+                          onTap: () => _showBadgeGallery(context, user),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFFA68FFF).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: const Color(0xFFA68FFF)
+                                          .withOpacity(0.5)),
+                                ),
+                                child: const Text("Badges 🎖️",
+                                    style: TextStyle(
+                                        color: Color(0xFFA68FFF),
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 40,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: user.earnedBadges.length,
+                                    itemBuilder: (context, index) {
+                                      final badgeId = user.earnedBadges[index];
+                                      final bData = allBadges.firstWhere(
+                                          (e) => e['id'] == badgeId,
+                                          orElse: () => allBadges[0]);
+                                      return GestureDetector(
+                                        onTap: () => _showBadgeDetail(
+                                            context, bData, true),
+                                        child: Container(
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                              color: Colors.white
+                                                  .withOpacity(0.08),
+                                              shape: BoxShape.circle),
+                                          child: Text(bData['icon'],
+                                              style: const TextStyle(
+                                                  fontSize: 16)),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Text(user.badge,
-                              style: const TextStyle(
-                                  color: Color(0xFFA68FFF),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16)),
                         ),
 
                         const SizedBox(height: 40),
 
-                        // LEVEL PROGRESS
+                        // Level Progress
                         _buildGlassContainer(
                           padding: const EdgeInsets.all(24),
                           child: Column(
@@ -299,12 +501,13 @@ class ProfileScreen extends StatelessWidget {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("Level $currentLevel",
+                                  Text("Level ${user.level}",
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold)),
-                                  Text("${user.xp} / $xpForNext XP",
+                                  Text(
+                                      "${user.xp} / ${user.xpRequiredForNextLevel} XP",
                                       style: TextStyle(
                                           color:
                                               Colors.white.withOpacity(0.6))),
@@ -314,7 +517,7 @@ class ProfileScreen extends StatelessWidget {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: LinearProgressIndicator(
-                                  value: progress,
+                                  value: progress.clamp(0.0, 1.0),
                                   backgroundColor:
                                       Colors.white.withOpacity(0.1),
                                   color: const Color(0xFFA68FFF),
@@ -322,7 +525,8 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text("${xpForNext - user.xp} XP to next level",
+                              Text(
+                                  "${user.xpRequiredForNextLevel - user.xp} XP to next level",
                                   style: TextStyle(
                                       color: Colors.white.withOpacity(0.4),
                                       fontSize: 12)),
@@ -332,32 +536,26 @@ class ProfileScreen extends StatelessWidget {
 
                         const SizedBox(height: 24),
 
-                        // ISTATISTIKLER (GÜNCELLENMİŞ KISIM)
+                        // Stats Grid
                         Row(
                           children: [
-                            // Total XP
                             Expanded(
                                 child: _buildGlassStatCard(
                                     "Total XP", "${user.xp} ✨")),
                             const SizedBox(width: 15),
-
-                            // Chain Rank - ARTIK CANLI VERİ
                             Expanded(
                               child: FutureBuilder<int>(
                                 future: FirestoreService().getUserRank(user.xp),
-                                builder: (context, rankSnapshot) {
-                                  String rankText = "...";
-                                  if (rankSnapshot.hasData) {
-                                    rankText = "#${rankSnapshot.data} 🏆";
-                                  }
-                                  return _buildGlassStatCard(
-                                      "Chain Rank", rankText);
-                                },
+                                builder: (context, rSnap) =>
+                                    _buildGlassStatCard(
+                                        "Chain Rank",
+                                        rSnap.hasData
+                                            ? "#${rSnap.data} 🏆"
+                                            : "..."),
                               ),
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 30),
                       ],
                     ),
